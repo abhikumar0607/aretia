@@ -39,6 +39,9 @@
             <a href="{{ route('admin.cases.index') }}" class="{{ request()->routeIs('admin.cases.*') ? 'active' : '' }}">{!! $icon('M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z') !!} Cases</a>
             <a href="{{ route('admin.workflow.index') }}" class="{{ request()->routeIs('admin.workflow.*') ? 'active' : '' }}">{!! $icon('M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15') !!} Workflow</a>
             <a href="{{ route('admin.audit.index') }}" class="{{ request()->routeIs('admin.audit.*') ? 'active' : '' }}">{!! $icon('M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z') !!} Audit Trail</a>
+            @if($isSuperAdmin)
+                <a href="{{ route('superadmin.roles.index') }}" class="{{ request()->routeIs('superadmin.roles.*') ? 'active' : '' }}">{!! $icon('M12 11c0-1.657 1.343-3 3-3s3 1.343 3 3v2m-6 0h6m-9 8h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z') !!} Permissions &amp; Roles</a>
+            @endif
         @elseif($role->value === 'client')
             <div class="sidebar-nav-label">Portal</div>
             @if($user->isClientActive())

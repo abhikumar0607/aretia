@@ -31,10 +31,13 @@
                 <label for="login-password">Password</label>
                 <input type="password" id="login-password" name="password" required autocomplete="current-password">
             </div>
-            <label class="auth-remember">
-                <input type="checkbox" name="remember">
-                <span>Remember me</span>
-            </label>
+            <div class="auth-options">
+                <label class="auth-remember">
+                    <input type="checkbox" name="remember">
+                    <span>Remember me</span>
+                </label>
+                <a href="{{ route('password.request') }}" class="auth-forgot">Forgot password?</a>
+            </div>
             <button type="submit" class="btn btn-primary btn-lg auth-submit">Sign in</button>
         </form>
 

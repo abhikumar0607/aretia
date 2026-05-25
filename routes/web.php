@@ -10,7 +10,9 @@ use App\Http\Controllers\Admin\OrderController as AdminOrderController;
 use App\Http\Controllers\Admin\WorkflowStageController;
 use App\Http\Controllers\Analyst\CaseController as AnalystCaseController;
 use App\Http\Controllers\Analyst\ReportController as AnalystReportController;
+use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Auth\ResetPasswordController;
 use App\Http\Controllers\Client\BulkOrderController as ClientBulkOrderController;
 use App\Http\Controllers\Client\CaseController as ClientCaseController;
 use App\Http\Controllers\Client\OnboardingController as ClientOnboardingController;
@@ -37,6 +39,15 @@ Route::middleware('guest')->group(function () {
     Route::post('/login', [LoginController::class, 'login']);
     Route::get('/register', [RegisterController::class, 'show'])->name('register');
     Route::post('/register', [RegisterController::class, 'store']);
+
+    Route::get('/forgot-password', [ForgotPasswordController::class, 'show'])->name('password.request');
+    Route::post('/forgot-password', [ForgotPasswordController::class, 'send'])
+        ->middleware('throttle:6,1')
+        ->name('password.email');
+    Route::get('/reset-password/{token}', [ResetPasswordController::class, 'show'])->name('password.reset');
+    Route::post('/reset-password', [ResetPasswordController::class, 'update'])
+        ->middleware('throttle:6,1')
+        ->name('password.update');
 });
 
 Route::middleware('auth')->group(function () {
@@ -62,6 +73,7 @@ Route::middleware('auth')->group(function () {
 
     Route::middleware('role:'.UserRole::SuperAdmin->value)->prefix('superadmin')->name('superadmin.')->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'superadmin'])->name('dashboard');
+        Route::get('/roles', fn () => view('superadmin.roles.index'))->name('roles.index');
     });
 
     Route::middleware('role:'.UserRole::Admin->value)->prefix('admin')->name('admin.')->group(function () {
