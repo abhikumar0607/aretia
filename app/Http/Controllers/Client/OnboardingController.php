@@ -5,13 +5,17 @@ namespace App\Http\Controllers\Client;
 use App\Enums\CompanyStatus;
 use App\Enums\OnboardingStatus;
 use App\Http\Controllers\Controller;
+use App\Enums\UserRole;
 use App\Models\KycDocument;
+use App\Models\User;
+use App\Notifications\OnboardingReviewRequestedNotification;
 use App\Services\AuditService;
 use App\Services\PublicUploadService;
 use App\Support\Toast;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\View\View;
 
 class OnboardingController extends Controller
@@ -60,6 +64,11 @@ class OnboardingController extends Controller
             $company->update(['status' => CompanyStatus::KycSubmitted]);
             $user->update(['onboarding_status' => OnboardingStatus::KycSubmitted]);
             $this->audit->log('kyc.submitted', $company);
+
+            $reviewers = User::whereIn('role', [UserRole::SuperAdmin, UserRole::Admin])->get();
+            if ($reviewers->isNotEmpty()) {
+                Notification::send($reviewers, new OnboardingReviewRequestedNotification($company));
+            }
 
             return Toast::to(route('client.onboarding'), 'Documents submitted. We will notify you once approved.');
         }
