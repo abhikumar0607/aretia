@@ -9,6 +9,7 @@ use App\Models\Company;
 use App\Models\KycDocument;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use App\Notifications\OnboardingApprovedNotification;
+use App\Notifications\OnboardingRejectedNotification;
 use App\Services\AuditService;
 use App\Support\Toast;
 use Illuminate\Http\JsonResponse;
@@ -71,7 +72,12 @@ class OnboardingController extends Controller
 
         $this->audit->log('onboarding.rejected', $company, ['reason' => $request->rejection_reason]);
 
-        return Toast::back('Company rejected.');
+        $company->load('users');
+        foreach ($company->users as $user) {
+            Notification::send($user, new OnboardingRejectedNotification($company, $request->rejection_reason));
+        }
+
+        return Toast::back('Company rejected and client notified.');
     }
 
     public function downloadKyc(KycDocument $kyc): BinaryFileResponse

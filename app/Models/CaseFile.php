@@ -5,8 +5,10 @@ namespace App\Models;
 use App\Enums\UserRole;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\Builder;
 
 class CaseFile extends Model
 {
@@ -40,6 +42,71 @@ class CaseFile extends Model
     public function assignee(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assigned_to');
+    }
+
+    /** All analysts assigned to this case (team). */
+    public function analysts(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'case_analyst', 'case_id', 'user_id')
+            ->withTimestamps()
+            ->orderBy('users.name');
+    }
+
+    public function hasAnalyst(User|int $user): bool
+    {
+        $userId = $user instanceof User ? $user->id : $user;
+
+        if ($this->relationLoaded('analysts')) {
+            return $this->analysts->contains('id', $userId);
+        }
+
+        return $this->analysts()->where('users.id', $userId)->exists()
+            || (int) $this->assigned_to === (int) $userId;
+    }
+
+    /** @param  array<int, int|string>  $analystIds */
+    public function syncAnalystTeam(array $analystIds, int $leadAnalystId, int $assignedBy): void
+    {
+        $ids = collect($analystIds)
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values();
+
+        if (! $ids->contains($leadAnalystId)) {
+            $ids->prepend($leadAnalystId);
+        }
+
+        $this->analysts()->sync($ids->all());
+
+        $this->update([
+            'assigned_to' => $leadAnalystId,
+            'assigned_by' => $assignedBy,
+            'assigned_at' => now(),
+        ]);
+    }
+
+    public function scopeForAnalyst(Builder $query, User|int $user): void
+    {
+        $userId = $user instanceof User ? $user->id : $user;
+
+        $query->where(function (Builder $q) use ($userId) {
+            $q->where('assigned_to', $userId)
+                ->orWhereHas('analysts', fn (Builder $aq) => $aq->where('users.id', $userId));
+        });
+    }
+
+    public function analystTeamNames(): string
+    {
+        $team = $this->relationLoaded('analysts')
+            ? $this->analysts
+            : $this->analysts()->get();
+
+        if ($team->isEmpty() && $this->assignee) {
+            return $this->assignee->name;
+        }
+
+        return $team->pluck('name')->join(', ');
     }
 
     public function assigner(): BelongsTo
@@ -135,7 +202,7 @@ class CaseFile extends Model
         }
 
         if ($viewer->hasRole(UserRole::Analyst)) {
-            return (int) $this->assigned_to === (int) $viewer->id;
+            return $this->hasAnalyst($viewer);
         }
 
         return false;

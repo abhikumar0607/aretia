@@ -16,7 +16,10 @@ use Illuminate\Support\Str;
 
 class OrderCreationService
 {
-    public function __construct(private AuditService $audit) {}
+    public function __construct(
+        private AuditService $audit,
+        private OrderDueDateService $dueDates,
+    ) {}
 
     /**
      * @param  array<string, mixed>  $data
@@ -77,6 +80,8 @@ class OrderCreationService
             $customRequest = null;
         }
 
+        $dueDate = $this->dueDates->parseOptional($data['due_date'] ?? null);
+
         $order = Order::create([
             'reference' => Order::generateReference(),
             'company_id' => $company->id,
@@ -87,7 +92,7 @@ class OrderCreationService
             'subject_name' => $subjectName,
             'subject_details' => $subjectDetails,
             'custom_request' => $customRequest,
-            'due_date' => $package->due_days ? now()->addDays($package->due_days) : null,
+            'due_date' => $dueDate,
             'confirmed_at' => now(),
         ]);
 
@@ -108,6 +113,10 @@ class OrderCreationService
         ]);
 
         Notification::send($orderUser, new OrderConfirmedNotification($order));
+
+        if ($dueDate) {
+            $this->dueDates->notifyDueDateSet($order, false);
+        }
 
         return $order;
     }

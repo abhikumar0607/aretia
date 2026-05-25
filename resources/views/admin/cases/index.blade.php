@@ -40,7 +40,7 @@
 
                     <th>Stage</th>
 
-                    <th>Analyst</th>
+                    <th>Team</th>
 
                     <th></th>
 
@@ -76,7 +76,13 @@
 
                     </td>
 
-                    <td>{{ $case->assignee?->name ?? '—' }}</td>
+                    <td>
+                        @if($case->analysts->count() > 1)
+                            <span title="Lead: {{ $case->assignee?->name }}">{{ $case->analystTeamNames() }}</span>
+                        @else
+                            {{ $case->assignee?->name ?? '—' }}
+                        @endif
+                    </td>
 
                     <td class="cell-action">
 

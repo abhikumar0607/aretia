@@ -3,10 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Enums\CompanyStatus;
+use App\Enums\UserRole;
 use App\Models\CaseFile;
 use App\Models\Company;
 use App\Models\Order;
 use App\Models\Report;
+use App\Models\User;
 use App\Support\DashboardChartData;
 use Illuminate\View\View;
 
@@ -34,11 +36,14 @@ class DashboardController extends Controller
     }
 
     /**
-     * @return array{pending_onboarding: int, orders: int, open_cases: int, reports_ready: int}
+     * @return array{client_companies: int, active_clients: int, analysts: int, pending_onboarding: int, orders: int, open_cases: int, reports_ready: int}
      */
     private function adminStats(): array
     {
         return [
+            'client_companies' => Company::count(),
+            'active_clients' => Company::where('status', CompanyStatus::Active)->count(),
+            'analysts' => User::where('role', UserRole::Analyst)->count(),
             'pending_onboarding' => Company::whereIn('status', [CompanyStatus::Pending, CompanyStatus::KycSubmitted])->count(),
             'orders' => Order::count(),
             'open_cases' => CaseFile::where('status', 'open')->count(),
@@ -69,12 +74,12 @@ class DashboardController extends Controller
         $userId = auth()->id();
 
         $stats = [
-            'assigned_cases' => CaseFile::where('assigned_to', $userId)->count(),
-            'in_progress' => CaseFile::where('assigned_to', $userId)->whereHas('stage', fn ($q) => $q->where('slug', 'in-progress'))->count(),
-            'completed' => CaseFile::where('assigned_to', $userId)->whereHas('stage', fn ($q) => $q->where('slug', 'completed'))->count(),
+            'assigned_cases' => CaseFile::forAnalyst($userId)->count(),
+            'in_progress' => CaseFile::forAnalyst($userId)->whereHas('stage', fn ($q) => $q->where('slug', 'in-progress'))->count(),
+            'completed' => CaseFile::forAnalyst($userId)->whereHas('stage', fn ($q) => $q->where('slug', 'completed'))->count(),
         ];
 
-        $cases = CaseFile::where('assigned_to', auth()->id())
+        $cases = CaseFile::forAnalyst(auth()->id())
             ->with(array_merge(['company', 'stage'], CaseFile::clientContactWith()))
             ->latest()
             ->limit(5)

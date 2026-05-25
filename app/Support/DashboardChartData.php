@@ -69,10 +69,10 @@ class DashboardChartData
      */
     public static function forAnalyst(int $userId): array
     {
-        $caseScope = fn (Builder $q) => $q->where('assigned_to', $userId);
+        $caseScope = fn (Builder $q) => $q->forAnalyst($userId);
 
         $byStatus = [];
-        foreach (CaseFile::query()->where('assigned_to', $userId)->selectRaw('status, count(*) as total')->groupBy('status')->get() as $row) {
+        foreach (CaseFile::query()->forAnalyst($userId)->selectRaw('status, count(*) as total')->groupBy('status')->get() as $row) {
             if ((int) $row->total > 0) {
                 $byStatus[] = [
                     'label' => ucfirst((string) $row->status),
@@ -86,7 +86,7 @@ class DashboardChartData
             self::buildChart('analyst', 'cases-stage', 'Cases by workflow stage', self::casesByStage($caseScope)),
             self::buildChart('analyst', 'cases-status', 'Cases by status', $byStatus),
             self::buildChart('analyst', 'reports', 'Reports on my cases', self::reportSlices(
-                fn (Builder $q) => $q->whereHas('caseFile', fn (Builder $c) => $c->where('assigned_to', $userId))
+                fn (Builder $q) => $q->whereHas('caseFile', fn (Builder $c) => $c->forAnalyst($userId))
             )),
         ];
     }

@@ -15,6 +15,7 @@ class OrdersTemplateExport implements FromArray, WithHeadings, WithStyles
     {
         $headings = [
             'package_slug',
+            'due_date',
             'subject_type',
             'subject_name',
             'subject_details',
@@ -35,6 +36,7 @@ class OrdersTemplateExport implements FromArray, WithHeadings, WithStyles
                 [
                     'client@aretia.test',
                     'basic-risk-spectrum',
+                    '2026-06-15',
                     'individual',
                     'John Doe',
                     'Director of ABC Holdings',
@@ -46,6 +48,7 @@ class OrdersTemplateExport implements FromArray, WithHeadings, WithStyles
                     '',
                     '',
                     '',
+                    '',
                     'Full due diligence on offshore entity XYZ',
                 ],
             ];
@@ -54,6 +57,7 @@ class OrdersTemplateExport implements FromArray, WithHeadings, WithStyles
         return [
             [
                 'standard-risk-spectrum',
+                '2026-06-20',
                 'entity',
                 'Acme Holdings Ltd',
                 'Registration no. 12345, Dubai',
@@ -61,6 +65,7 @@ class OrdersTemplateExport implements FromArray, WithHeadings, WithStyles
             ],
             [
                 'custom',
+                '',
                 '',
                 '',
                 '',

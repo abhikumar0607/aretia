@@ -90,7 +90,7 @@ class DocumentController extends Controller
             return;
         }
 
-        if ($user->hasRole(UserRole::Analyst) && $case->assigned_to === $user->id) {
+        if ($user->hasRole(UserRole::Analyst) && $case->hasAnalyst($user)) {
             return;
         }
 

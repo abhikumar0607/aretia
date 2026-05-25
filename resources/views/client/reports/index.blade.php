@@ -6,7 +6,7 @@
 <header class="listing-hero">
     <div class="listing-hero-text">
         <h1>Reports</h1>
-        <p>Download completed due diligence reports delivered to your account.</p>
+        <p>All delivered reports for your company{{ auth()->user()->company ? ' ('.auth()->user()->company->name.')' : '' }} — shared across your team.</p>
     </div>
 </header>
 

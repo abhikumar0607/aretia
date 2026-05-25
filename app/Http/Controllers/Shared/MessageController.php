@@ -189,7 +189,7 @@ class MessageController extends Controller
             return;
         }
 
-        if ($user->hasRole(UserRole::Analyst) && (int) $case->assigned_to === (int) $user->id) {
+        if ($user->hasRole(UserRole::Analyst) && $case->hasAnalyst($user)) {
             return;
         }
 

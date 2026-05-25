@@ -9,5 +9,6 @@
     'backRoute' => route('admin.orders.index'),
     'backLabel' => 'All orders',
     'caseRoute' => $order->caseFile ? route('admin.cases.show', $order->caseFile) : null,
+    'dueDateAction' => route('admin.orders.due-date', $order),
 ])
 @endsection
