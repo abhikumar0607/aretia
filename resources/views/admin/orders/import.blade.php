@@ -14,6 +14,7 @@
     'columns' => [
         ['name' => 'company_email', 'required' => 'Yes', 'example' => 'client@aretia.test'],
         ['name' => 'package_slug', 'required' => 'Yes', 'example' => 'standard-risk-spectrum'],
+        ['name' => 'due_date', 'required' => 'No', 'example' => '2026-06-15 (YYYY-MM-DD)'],
         ['name' => 'subject_type', 'required' => 'For non-custom', 'example' => 'individual / entity'],
         ['name' => 'subject_name', 'required' => 'For non-custom', 'example' => 'Subject name'],
         ['name' => 'subject_details', 'required' => 'No', 'example' => 'Notes'],

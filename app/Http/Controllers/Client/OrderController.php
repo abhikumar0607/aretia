@@ -8,6 +8,7 @@ use App\Models\Order;
 use App\Models\OrderDocument;
 use App\Models\ServicePackage;
 use App\Services\OrderCreationService;
+use App\Services\OrderDueDateService;
 use App\Services\PublicUploadService;
 use App\Support\Toast;
 use Illuminate\Http\JsonResponse;
@@ -20,6 +21,7 @@ class OrderController extends Controller
 {
     public function __construct(
         private OrderCreationService $orderService,
+        private OrderDueDateService $dueDates,
         private PublicUploadService $uploads,
     ) {}
 
@@ -73,6 +75,7 @@ class OrderController extends Controller
 
         $rules = [
             'service_package_id' => ['required', 'exists:service_packages,id'],
+            'due_date' => ['nullable', 'date', 'after_or_equal:today'],
         ];
 
         if ($package->is_custom) {
@@ -97,6 +100,7 @@ class OrderController extends Controller
             'subject_name' => $data['subject_name'] ?? null,
             'subject_details' => $data['subject_details'] ?? null,
             'custom_request' => $data['custom_request'] ?? null,
+            'due_date' => $data['due_date'] ?? null,
         ], $user, false);
 
         if (! empty($data['documents'] ?? null)) {
@@ -128,6 +132,32 @@ class OrderController extends Controller
         $this->addDocument($order, auth()->id(), $data['name'], $data['data']);
 
         return Toast::back('Document uploaded successfully.');
+    }
+
+    public function updateDueDate(Request $request, Order $order): JsonResponse|RedirectResponse
+    {
+        $this->authorizeOrder($order);
+
+        if ($request->boolean('clear_due_date')) {
+            $this->dueDates->apply($order, null, $request->user(), true);
+
+            return Toast::back('Due date cleared.');
+        }
+
+        $data = $request->validate([
+            'due_date' => ['required', 'date', 'after_or_equal:today'],
+        ]);
+
+        $hadDueDate = $order->due_date !== null;
+
+        $this->dueDates->apply(
+            $order,
+            $this->dueDates->parseOptional($data['due_date']),
+            $request->user(),
+            $hadDueDate
+        );
+
+        return Toast::back('Due date saved. Team members have been notified.');
     }
 
     public function downloadDocument(Order $order, OrderDocument $document): BinaryFileResponse

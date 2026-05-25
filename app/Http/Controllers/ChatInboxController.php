@@ -48,7 +48,7 @@ class ChatInboxController extends Controller
                 ->where('company_id', $user->company_id)
                 ->whereNotNull('assigned_to'));
         } elseif ($user->hasRole(UserRole::Analyst)) {
-            $query->whereHas('caseFile', fn ($q) => $q->where('assigned_to', $user->id));
+            $query->whereHas('caseFile', fn ($q) => $q->forAnalyst($user->id));
         }
 
         return $query;

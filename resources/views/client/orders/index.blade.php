@@ -6,7 +6,7 @@
 <header class="listing-hero">
     <div class="listing-hero-text">
         <h1>My orders</h1>
-        <p>Track due diligence requests, due dates, and confirmation status.</p>
+        <p>All orders for your company{{ auth()->user()->company ? ' ('.auth()->user()->company->name.')' : '' }} — visible to every user on this account.</p>
     </div>
     <div class="listing-hero-actions">
         <a href="{{ route('client.orders.create') }}" class="btn btn-primary">

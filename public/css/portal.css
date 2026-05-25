@@ -1391,6 +1391,212 @@ body {
 .stat-card .label { font-size: 0.78rem; color: var(--muted); font-weight: 500; }
 .stat-card .value { font-size: 1.85rem; font-weight: 700; margin-top: 0.35rem; letter-spacing: -0.02em; }
 
+.admin-people-layout {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    gap: 1.5rem;
+    align-items: start;
+}
+
+@media (max-width: 900px) {
+    .admin-people-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+.admin-people-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    position: sticky;
+    top: 1.25rem;
+}
+
+@media (max-width: 900px) {
+    .admin-people-nav {
+        flex-direction: row;
+        position: static;
+        overflow-x: auto;
+        padding-bottom: 0.25rem;
+    }
+}
+
+.admin-people-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.85rem 1rem;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: #fff;
+    text-decoration: none;
+    color: inherit;
+    transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+}
+
+.admin-people-nav-item:hover {
+    border-color: #c7d2fe;
+    background: #faf5ff;
+}
+
+.admin-people-nav-item.is-active {
+    border-color: #818cf8;
+    background: linear-gradient(145deg, #eef2ff 0%, #faf5ff 100%);
+    box-shadow: 0 2px 8px rgba(79, 70, 229, 0.1);
+}
+
+.admin-people-nav-icon {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: #f1f5f9;
+    color: #64748b;
+}
+
+.admin-people-nav-item.is-active .admin-people-nav-icon {
+    background: #e0e7ff;
+    color: #4f46e5;
+}
+
+.admin-people-nav-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    min-width: 0;
+}
+
+.admin-people-nav-text strong {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.admin-people-nav-text small {
+    font-size: 0.72rem;
+    color: var(--muted);
+    line-height: 1.3;
+}
+
+.admin-people-main {
+    min-width: 0;
+}
+
+.admin-analysts-grid {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 1.25rem;
+    align-items: start;
+}
+
+@media (max-width: 1100px) {
+    .admin-analysts-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.team-panel {
+    padding: 1.35rem 1.5rem;
+}
+
+.team-panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 1.15rem;
+}
+
+.team-panel-head h2 {
+    font-size: 1.05rem;
+    font-weight: 700;
+    margin: 0;
+}
+
+.team-side {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.team-analyst-form .form-field {
+    margin-bottom: 1rem;
+}
+
+.team-analyst-form .form-field label {
+    display: block;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    margin-bottom: 0.4rem;
+    color: #334155;
+}
+
+.team-analyst-form .form-field input {
+    width: 100%;
+    padding: 0.7rem 0.9rem;
+    border: 1px solid #e2e8f0;
+    border-radius: var(--radius-sm);
+    font-size: 0.9rem;
+    font-family: inherit;
+}
+
+.form-optional {
+    font-weight: 500;
+    color: var(--muted);
+    font-size: 0.75rem;
+}
+
+.team-analyst-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.85rem 0;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.team-analyst-row:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.team-analyst-row:first-of-type {
+    padding-top: 0;
+}
+
+.order-due-date-card {
+    margin-bottom: 1rem;
+}
+
+.order-due-date-form .form-field {
+    margin-bottom: 1rem;
+}
+
+.order-due-date-form .form-field label {
+    display: block;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    margin-bottom: 0.4rem;
+}
+
+.order-due-date-form input[type="date"] {
+    width: 100%;
+    padding: 0.7rem 0.9rem;
+    border: 1px solid #e2e8f0;
+    border-radius: var(--radius-sm);
+    font-family: inherit;
+    font-size: 0.9rem;
+}
+
+.order-due-date-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
 /* Dashboard page layout */
 .dashboard-page {
     display: flex;
@@ -2792,6 +2998,33 @@ nav[role="navigation"] span { background: var(--primary-soft); }
 
 .case-action-card {
     padding: 1.35rem 1.5rem;
+}
+
+.case-panel-sub {
+    margin: 0.35rem 0 0;
+    font-size: 0.875rem;
+    color: var(--text-muted, #64748b);
+}
+
+.analyst-team-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 0.35rem;
+}
+
+.analyst-team-option {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9375rem;
+    cursor: pointer;
+}
+
+.analyst-team-option input {
+    width: 1rem;
+    height: 1rem;
+    accent-color: var(--primary, #4f46e5);
 }
 
 .case-action-card-accent {

@@ -13,6 +13,7 @@
     'step1Hint' => 'Fill the template with your orders, then upload in step 2.',
     'columns' => [
         ['name' => 'package_slug', 'required' => 'Yes', 'example' => 'basic-risk-spectrum, custom'],
+        ['name' => 'due_date', 'required' => 'No', 'example' => '2026-06-15 (YYYY-MM-DD)'],
         ['name' => 'subject_type', 'required' => 'For non-custom', 'example' => 'individual or entity'],
         ['name' => 'subject_name', 'required' => 'For non-custom', 'example' => 'John Doe'],
         ['name' => 'subject_details', 'required' => 'No', 'example' => 'Extra notes'],

@@ -22,7 +22,7 @@ class CaseController extends Controller
     public function index(): View
     {
         $cases = CaseFile::with(array_merge(
-            ['company', 'order.package', 'stage', 'assignee'],
+            ['company', 'order.package', 'stage', 'assignee', 'analysts'],
             CaseFile::clientContactWith()
         ))
             ->latest()
@@ -34,7 +34,7 @@ class CaseController extends Controller
     public function show(CaseFile $case): View
     {
         $case->load(array_merge(
-            ['company', 'order.package', 'stage', 'assignee', 'stageHistories.stage', 'stageHistories.user', 'messages.sender', 'documents.uploader', 'latestReport'],
+            ['company', 'order.package', 'stage', 'assignee', 'analysts', 'stageHistories.stage', 'stageHistories.user', 'messages.sender', 'documents.uploader', 'latestReport'],
             CaseFile::clientContactWith()
         ));
         $analysts = User::where('role', UserRole::Analyst)->get();
@@ -46,18 +46,35 @@ class CaseController extends Controller
     public function assign(Request $request, CaseFile $case): RedirectResponse|JsonResponse
     {
         $data = $request->validate([
+            'analyst_ids' => ['required', 'array', 'min:1'],
+            'analyst_ids.*' => ['integer', 'exists:users,id'],
             'assigned_to' => ['required', 'exists:users,id'],
         ]);
 
-        $case->update([
-            'assigned_to' => $data['assigned_to'],
-            'assigned_by' => auth()->id(),
-            'assigned_at' => now(),
+        $analystIds = collect($data['analyst_ids'])->map(fn ($id) => (int) $id)->unique()->values();
+        $leadId = (int) $data['assigned_to'];
+
+        if (! $analystIds->contains($leadId)) {
+            return Toast::back('Lead analyst must be included in the team.');
+        }
+
+        $validAnalystCount = User::query()
+            ->where('role', UserRole::Analyst)
+            ->whereIn('id', $analystIds->all())
+            ->count();
+
+        if ($validAnalystCount !== $analystIds->count()) {
+            return Toast::back('All team members must be active analysts.');
+        }
+
+        $case->syncAnalystTeam($analystIds->all(), $leadId, (int) auth()->id());
+
+        $this->audit->log('case.assigned', $case, [
+            'assigned_to' => $leadId,
+            'analyst_ids' => $analystIds->all(),
         ]);
 
-        $this->audit->log('case.assigned', $case, ['assigned_to' => $data['assigned_to']]);
-
-        return Toast::to(route('admin.cases.show', $case), 'Case assigned to analyst.');
+        return Toast::to(route('admin.cases.show', $case), 'Case team assigned.');
     }
 
     public function updateStage(Request $request, CaseFile $case): RedirectResponse|JsonResponse

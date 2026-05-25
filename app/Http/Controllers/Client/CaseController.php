@@ -53,7 +53,7 @@ class CaseController extends Controller
     {
         abort_unless($case->company_id === auth()->user()->company_id, 403);
 
-        $case->load(['company', 'order.package', 'stage', 'assignee', 'stageHistories.stage', 'stageHistories.user', 'messages.sender', 'documents.uploader', 'latestReport']);
+        $case->load(['company', 'order.package', 'stage', 'assignee', 'analysts', 'stageHistories.stage', 'stageHistories.user', 'messages.sender', 'documents.uploader', 'latestReport']);
 
         return view('client.cases.show', compact('case'));
     }

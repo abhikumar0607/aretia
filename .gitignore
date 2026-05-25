@@ -18,6 +18,17 @@
 /public/fonts-manifest.dev.json
 /public/hot
 /public/storage
+
+# User uploads (KYC, orders, cases, reports, avatars) — local/server only, not in git
+/public/uploads/**/*
+!/public/uploads/.gitignore
+!/public/uploads/.htaccess
+!/public/uploads/**/.gitignore
+!/public/uploads/**/.htaccess
+
+# PHP upload temp files
+/public/tmp/uploads/*
+!/public/tmp/uploads/.gitignore
 /storage/*.key
 /storage/pail
 /vendor

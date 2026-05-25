@@ -18,6 +18,7 @@
     'caseChatLabel' => $orderChatPartner ? 'Chat with '.$orderChatPartner->name : null,
     'documentDownloadRoute' => 'client.orders.documents.download',
     'documentUploadRoute' => route('client.orders.documents.store', $order),
+    'dueDateAction' => route('client.orders.due-date', $order),
 ])
 
 @if($canCaseChat)

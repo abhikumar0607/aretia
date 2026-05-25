@@ -13,13 +13,17 @@
 
     'statCards' => [
 
-        ['label' => 'Pending onboarding', 'value' => $stats['pending_onboarding']],
+        ['label' => 'Client companies', 'value' => $stats['client_companies'], 'accent' => true],
+
+        ['label' => 'Active clients', 'value' => $stats['active_clients']],
+
+        ['label' => 'Analysts', 'value' => $stats['analysts']],
+
+        ['label' => 'Pending onboarding', 'value' => $stats['pending_onboarding'], 'warn' => $stats['pending_onboarding'] > 0],
 
         ['label' => 'Total orders', 'value' => $stats['orders']],
 
         ['label' => 'Open cases', 'value' => $stats['open_cases']],
-
-        ['label' => 'Reports delivered', 'value' => $stats['reports_ready']],
 
     ],
 
@@ -27,13 +31,13 @@
 
     'quickLinks' => [
 
+        ['title' => 'Clients', 'text' => $stats['client_companies'].' companies registered', 'route' => 'admin.clients.index'],
+
+        ['title' => 'Analysts', 'text' => $stats['analysts'].' analysts · add new', 'route' => 'admin.analysts.index'],
+
         ['title' => 'Onboarding', 'text' => 'Review KYC submissions', 'route' => 'admin.onboarding.index'],
 
-        ['title' => 'Orders', 'text' => 'View all client orders', 'route' => 'admin.orders.index'],
-
         ['title' => 'Cases', 'text' => 'Assign analysts & track stages', 'route' => 'admin.cases.index'],
-
-        ['title' => 'Audit trail', 'text' => 'Compliance activity log', 'route' => 'admin.audit.index'],
 
     ],
 

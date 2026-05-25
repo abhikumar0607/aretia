@@ -4,6 +4,7 @@ use App\Enums\UserRole;
 use App\Http\Controllers\Admin\AuditLogController;
 use App\Http\Controllers\Admin\BulkOrderController as AdminBulkOrderController;
 use App\Http\Controllers\Admin\CaseController as AdminCaseController;
+use App\Http\Controllers\Admin\TeamController as AdminTeamController;
 use App\Http\Controllers\Admin\OnboardingController as AdminOnboardingController;
 use App\Http\Controllers\Admin\OrderController as AdminOrderController;
 use App\Http\Controllers\Admin\WorkflowStageController;
@@ -78,6 +79,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/orders/import', [AdminBulkOrderController::class, 'import'])->name('orders.import.store');
         Route::get('/orders/import/template', [AdminBulkOrderController::class, 'template'])->name('orders.import.template');
         Route::get('/orders/{order}', [AdminOrderController::class, 'show'])->name('orders.show');
+        Route::patch('/orders/{order}/due-date', [AdminOrderController::class, 'updateDueDate'])->name('orders.due-date');
         Route::get('/cases', [AdminCaseController::class, 'index'])->name('cases.index');
         Route::get('/cases/{case}', [AdminCaseController::class, 'show'])->name('cases.show');
         Route::post('/cases/{case}/assign', [AdminCaseController::class, 'assign'])->name('cases.assign');
@@ -86,6 +88,10 @@ Route::middleware('auth')->group(function () {
         Route::post('/workflow', [WorkflowStageController::class, 'store'])->name('workflow.store');
         Route::delete('/workflow/{stage}', [WorkflowStageController::class, 'destroy'])->name('workflow.destroy');
         Route::get('/audit', [AuditLogController::class, 'index'])->name('audit.index');
+        Route::get('/clients', [AdminTeamController::class, 'clients'])->name('clients.index');
+        Route::get('/analysts', [AdminTeamController::class, 'analysts'])->name('analysts.index');
+        Route::post('/analysts', [AdminTeamController::class, 'storeAnalyst'])->name('analysts.store');
+        Route::redirect('/team', '/admin/clients');
     });
 
     Route::middleware(['role:'.UserRole::Client->value, 'client.onboarded'])->prefix('client')->name('client.')->group(function () {
@@ -101,6 +107,7 @@ Route::middleware('auth')->group(function () {
             Route::get('/orders/create', [ClientOrderController::class, 'create'])->name('orders.create');
             Route::post('/orders', [ClientOrderController::class, 'store'])->name('orders.store');
             Route::get('/orders/{order}', [ClientOrderController::class, 'show'])->name('orders.show');
+            Route::patch('/orders/{order}/due-date', [ClientOrderController::class, 'updateDueDate'])->name('orders.due-date');
             Route::post('/orders/{order}/documents', [ClientOrderController::class, 'storeDocument'])->name('orders.documents.store');
             Route::get('/orders/{order}/documents/{document}/download', [ClientOrderController::class, 'downloadDocument'])->name('orders.documents.download');
             Route::get('/cases', [ClientCaseController::class, 'index'])->name('cases.index');

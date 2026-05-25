@@ -28,7 +28,7 @@
                         <option value="{{ $package->id }}" data-custom="{{ $package->is_custom ? '1' : '0' }}"
                             data-days="{{ $package->due_days ?? '' }}"
                             {{ ($selected && $selected->id === $package->id) ? 'selected' : '' }}>
-                            {{ $package->name }}{{ $package->due_days ? ' — '.$package->due_days.' days' : '' }}
+                            {{ $package->name }}
                         </option>
                     @endforeach
                 </select>
@@ -66,6 +66,15 @@
                         <span class="import-file-name" data-file-name></span>
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <div class="order-form-section">
+            <h3 class="order-form-section-title">Due date</h3>
+            <div class="form-field">
+                <label for="due_date">Expected due date <span class="form-optional">(optional)</span></label>
+                <input type="date" name="due_date" id="due_date" value="{{ old('due_date') }}" min="{{ now()->format('Y-m-d') }}">
+                <p class="form-field-hint">Leave blank if not decided yet. You can set it later on the order page. Email and portal alerts go out when a due date is saved.</p>
             </div>
         </div>
 

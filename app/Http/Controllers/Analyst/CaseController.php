@@ -19,7 +19,7 @@ class CaseController extends Controller
 
     public function index(): View
     {
-        $cases = CaseFile::where('assigned_to', auth()->id())
+        $cases = CaseFile::forAnalyst(auth()->id())
             ->with(array_merge(['company', 'order.package', 'stage'], CaseFile::clientContactWith()))
             ->latest()
             ->paginate(config('portal.per_page'));
@@ -29,10 +29,10 @@ class CaseController extends Controller
 
     public function show(CaseFile $case): View
     {
-        abort_unless($case->assigned_to === auth()->id(), 403);
+        abort_unless($case->hasAnalyst(auth()->id()), 403);
 
         $case->load(array_merge(
-            ['company', 'order.package', 'stage', 'assignee', 'stageHistories.stage', 'stageHistories.user', 'messages.sender', 'documents.uploader', 'latestReport'],
+            ['company', 'order.package', 'stage', 'assignee', 'analysts', 'stageHistories.stage', 'stageHistories.user', 'messages.sender', 'documents.uploader', 'latestReport'],
             CaseFile::clientContactWith()
         ));
         $stages = WorkflowStage::where('is_active', true)->orderBy('sort_order')->get();
@@ -42,7 +42,7 @@ class CaseController extends Controller
 
     public function updateStage(Request $request, CaseFile $case): JsonResponse|RedirectResponse
     {
-        abort_unless($case->assigned_to === auth()->id(), 403);
+        abort_unless($case->hasAnalyst(auth()->id()), 403);
 
         $data = $request->validate([
             'workflow_stage_id' => ['required', 'exists:workflow_stages,id'],

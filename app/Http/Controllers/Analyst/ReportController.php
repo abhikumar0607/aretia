@@ -23,7 +23,7 @@ class ReportController extends Controller
 
     public function store(Request $request, CaseFile $case): JsonResponse|RedirectResponse
     {
-        abort_unless($case->assigned_to === auth()->id(), 403);
+        abort_unless($case->hasAnalyst(auth()->id()), 403);
 
         $data = $request->validate([
             'title' => ['required', 'string', 'max:255'],

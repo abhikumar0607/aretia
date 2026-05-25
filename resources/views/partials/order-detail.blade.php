@@ -71,7 +71,7 @@
         </div>
         <div>
             <span class="detail-meta-label">Due date</span>
-            <span class="detail-meta-value">{{ $order->due_date?->format('d M Y') ?? 'To be confirmed' }}</span>
+            <span class="detail-meta-value">{{ $order->due_date?->format('d M Y') ?? 'Not set' }}</span>
         </div>
     </div>
     <div class="detail-meta-card">
@@ -152,36 +152,7 @@
             </div>
         @endif
 
-        <div class="detail-side-card">
-            <h4>Order timeline</h4>
-            <ul class="detail-timeline">
-                <li class="detail-timeline-item done">
-                    <span class="detail-timeline-dot"></span>
-                    <div>
-                        <strong>Order created</strong>
-                        <span>{{ $order->created_at->format('d M Y, H:i') }}</span>
-                    </div>
-                </li>
-                @if($order->confirmed_at)
-                    <li class="detail-timeline-item done">
-                        <span class="detail-timeline-dot"></span>
-                        <div>
-                            <strong>Confirmed</strong>
-                            <span>{{ $order->confirmed_at->format('d M Y, H:i') }}</span>
-                        </div>
-                    </li>
-                @endif
-                @if($order->caseFile)
-                    <li class="detail-timeline-item {{ $order->caseFile->stage ? 'done' : '' }}">
-                        <span class="detail-timeline-dot"></span>
-                        <div>
-                            <strong>Case opened</strong>
-                            <span>{{ $order->caseFile->created_at->format('d M Y, H:i') }}</span>
-                        </div>
-                    </li>
-                @endif
-            </ul>
-        </div>
+        @include('partials.order-due-date-form', ['order' => $order, 'dueDateAction' => $dueDateAction ?? null])
     </aside>
 </div>
 

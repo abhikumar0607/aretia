@@ -9,7 +9,9 @@
 
     'heading' => 'Welcome, '.$user->name,
 
-    'description' => 'Place due diligence orders and track your cases.',
+    'description' => $company
+        ? 'Orders, cases, and reports for '.$company->name.' are shared with everyone on your company account.'
+        : 'Place due diligence orders and track your cases.',
 
     'alert' => !$user->isClientActive() ? 'Complete onboarding to start ordering. <a href="'.route('client.onboarding').'">Go to onboarding</a>' : null,
 

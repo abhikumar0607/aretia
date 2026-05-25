@@ -37,7 +37,12 @@
                 <span class="pill pill-client">Client: {{ $clientContact->name }}</span>
             @endif
             @if($case->assignee)
-                <span class="pill pill-muted">Analyst: {{ $case->assignee->name }}</span>
+                @if($case->relationLoaded('analysts') && $case->analysts->count() > 1)
+                    <span class="pill pill-muted" title="Lead analyst">Team: {{ $case->analystTeamNames() }}</span>
+                    <span class="pill pill-muted">Lead: {{ $case->assignee->name }}</span>
+                @else
+                    <span class="pill pill-muted">Analyst: {{ $case->assignee->name }}</span>
+                @endif
             @else
                 <span class="pill pill-muted">Unassigned</span>
             @endif
