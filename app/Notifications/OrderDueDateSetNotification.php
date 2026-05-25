@@ -31,11 +31,30 @@ class OrderDueDateSetNotification extends Notification implements ShouldBroadcas
             ? 'Aretia — Order due date updated'
             : 'Aretia — Order due date set';
 
+        $title = $this->isUpdate ? 'Order due date updated' : 'Order due date set';
+        $eyebrow = $this->isUpdate ? 'Schedule Updated' : 'Schedule Confirmed';
+
         return (new MailMessage)
             ->subject($subject)
-            ->line('Order '.$this->order->reference.' ('.$this->order->package->name.')')
-            ->line('Due date: '.$this->order->due_date->format('d M Y'))
-            ->action('View order', $this->orderUrl($notifiable));
+            ->view('emails.notification', [
+                'subject' => $title,
+                'preheader' => $title.' for order '.$this->order->reference,
+                'eyebrow' => $eyebrow,
+                'accent' => 'info',
+                'title' => $title,
+                'greeting' => 'Hello '.$notifiable->name.',',
+                'intro' => $this->isUpdate
+                    ? 'The due date for your order has been updated by our team.'
+                    : 'A due date has been scheduled for your order.',
+                'highlights' => [
+                    'Order reference' => e($this->order->reference),
+                    'Package' => e($this->order->package->name),
+                    'Due date' => $this->order->due_date->format('d M Y'),
+                ],
+                'cta_url' => $this->orderUrl($notifiable),
+                'cta_label' => 'View order',
+                'outro' => 'Our analyst team is working on your case and will notify you when the report is ready.',
+            ]);
     }
 
     public function toArray(object $notifiable): array

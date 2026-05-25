@@ -25,13 +25,25 @@ class OnboardingRejectedNotification extends Notification implements ShouldBroad
 
     public function toMail(object $notifiable): MailMessage
     {
+        $url = route('client.onboarding');
+
         return (new MailMessage)
             ->subject('Aretia — Onboarding not approved')
-            ->greeting('Hello '.$notifiable->name)
-            ->line('Your onboarding for '.$this->company->name.' was not approved at this time.')
-            ->line('Reason: '.$this->reason)
-            ->action('View onboarding', route('client.onboarding'))
-            ->line('You may update your documents and contact support if you have questions.');
+            ->view('emails.notification', [
+                'subject' => 'Onboarding not approved',
+                'preheader' => 'Your onboarding application needs attention.',
+                'eyebrow' => 'Action Required',
+                'accent' => 'danger',
+                'title' => 'Onboarding not approved',
+                'greeting' => 'Hello '.$notifiable->name.',',
+                'intro' => 'Your onboarding for <strong>'.e($this->company->name).'</strong> was not approved at this time. Please review the reason below and resubmit your documents.',
+                'highlights' => [
+                    'Reason from our team' => nl2br(e($this->reason)),
+                ],
+                'cta_url' => $url,
+                'cta_label' => 'Update onboarding',
+                'outro' => 'You can update your documents and resubmit. If anything is unclear, reply to this email and our team will guide you.',
+            ]);
     }
 
     public function toArray(object $notifiable): array

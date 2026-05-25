@@ -10,7 +10,18 @@ class AuditLogController extends Controller
 {
     public function index(): View
     {
-        $logs = AuditLog::with('user')->latest()->paginate(config('portal.per_page'))->withQueryString();
+        $logs = AuditLog::with([
+            'user',
+            'auditable' => fn ($morphTo) => $morphTo->morphWith([
+                \App\Models\CaseFile::class => ['company', 'assignee', 'stage'],
+                \App\Models\Order::class => ['company', 'package'],
+                \App\Models\Report::class => ['caseFile'],
+                \App\Models\Message::class => ['caseFile'],
+            ]),
+        ])
+            ->latest()
+            ->paginate(config('portal.per_page'))
+            ->withQueryString();
 
         return view('admin.audit.index', compact('logs'));
     }
