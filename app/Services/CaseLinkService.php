@@ -6,6 +6,7 @@ use App\Enums\UserRole;
 use App\Models\CaseFile;
 use App\Models\CaseLinkGroup;
 use App\Models\User;
+use App\Support\CompanyFilter;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 
@@ -118,7 +119,7 @@ class CaseLinkService
             return;
         }
 
-        if ($actor->hasRole(UserRole::Client) && (int) $case->company_id === (int) $actor->company_id) {
+        if ($actor->hasRole(UserRole::Client) && CompanyFilter::userCanAccessCompany($actor, $case->company_id)) {
             return;
         }
 

@@ -69,7 +69,7 @@ class CaseController extends Controller
 
     public function show(CaseFile $case): View
     {
-        abort_unless($case->company_id === auth()->user()->company_id, 403);
+        CompanyFilter::authorizeCompanyAccess($case->company_id);
 
         $this->caseDocuments->syncFromOrder($case);
 

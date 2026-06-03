@@ -141,7 +141,7 @@ class DocumentController extends Controller
             return;
         }
 
-        if ($user->hasRole(UserRole::Client) && $case->company_id === $user->company_id) {
+        if ($user->hasRole(UserRole::Client) && \App\Support\CompanyFilter::userCanAccessCompany($user, $case->company_id)) {
             return;
         }
 

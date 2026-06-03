@@ -221,6 +221,6 @@ class OrderController extends Controller
 
     private function authorizeOrder(Order $order): void
     {
-        abort_unless($order->company_id === auth()->user()->company_id, 403);
+        CompanyFilter::authorizeCompanyAccess($order->company_id);
     }
 }

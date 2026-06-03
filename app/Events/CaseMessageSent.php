@@ -3,6 +3,7 @@
 namespace App\Events;
 
 use App\Models\Message;
+use App\Services\CaseMessageNotifyService;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
@@ -21,8 +22,13 @@ class CaseMessageSent implements ShouldBroadcastNow
             new PrivateChannel('case.'.$this->message->case_id),
         ];
 
-        if ($this->message->recipient_id) {
-            $channels[] = new PrivateChannel('App.Models.User.'.$this->message->recipient_id);
+        $seen = [];
+        foreach (app(CaseMessageNotifyService::class)->notificationRecipientIds($this->message) as $userId) {
+            if (isset($seen[$userId])) {
+                continue;
+            }
+            $seen[$userId] = true;
+            $channels[] = new PrivateChannel('App.Models.User.'.$userId);
         }
 
         return $channels;

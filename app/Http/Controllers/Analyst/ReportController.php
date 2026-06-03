@@ -98,8 +98,7 @@ class ReportController extends Controller
             $this->audit->log('report.delivered', $report);
         }
 
-        $case->load('company.users');
-        $clientUsers = $case->company->users;
+        $clientUsers = \App\Support\CompanyFilter::clientUsersForCompany((int) $case->company_id);
         if (! empty($created)) {
             Notification::send($clientUsers, new ReportReadyNotification($created[array_key_last($created)]));
         }
