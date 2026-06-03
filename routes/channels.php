@@ -3,6 +3,7 @@
 use App\Enums\UserRole;
 use App\Models\CaseFile;
 use App\Models\User;
+use App\Support\CompanyFilter;
 use Illuminate\Support\Facades\Broadcast;
 
 Broadcast::channel('App.Models.User.{id}', function (User $user, int $id): bool {
@@ -19,7 +20,7 @@ Broadcast::channel('case.{caseId}', function (User $user, int $caseId): bool {
         return true;
     }
 
-    if ($user->hasRole(UserRole::Client) && (int) $case->company_id === (int) $user->company_id) {
+    if ($user->hasRole(UserRole::Client) && CompanyFilter::userCanAccessCompany($user, $case->company_id)) {
         return true;
     }
 

@@ -82,9 +82,7 @@ class ReportController extends Controller
 
     private function authorizeReport(Report $report): void
     {
-        abort_unless(
-            $report->caseFile->company_id === auth()->user()->company_id && $report->delivered_at,
-            403
-        );
+        abort_unless($report->delivered_at, 403);
+        CompanyFilter::authorizeCompanyAccess($report->caseFile->company_id);
     }
 }

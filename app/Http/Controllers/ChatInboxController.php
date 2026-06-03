@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Enums\UserRole;
 use App\Models\CaseFile;
 use App\Models\Message;
+use App\Support\CaseMessageVisibility;
+use App\Support\CompanyFilter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -41,14 +43,16 @@ class ChatInboxController extends Controller
 
     private function inboxQuery($user)
     {
-        $query = Message::query()->where('recipient_id', $user->id);
+        $query = Message::query();
 
         if ($user->hasRole(UserRole::Client)) {
-            $query->whereHas('caseFile', fn ($q) => $q
-                ->where('company_id', $user->company_id)
-                ->whereNotNull('assigned_to'));
+            CaseMessageVisibility::applyClientInbox($query, $user);
         } elseif ($user->isEmployee()) {
-            $query->whereHas('caseFile', fn ($q) => $q->forAnalyst($user->id));
+            $query
+                ->where('recipient_id', $user->id)
+                ->whereHas('caseFile', fn ($q) => $q->forAnalyst($user->id));
+        } else {
+            $query->where('recipient_id', $user->id);
         }
 
         return $query;

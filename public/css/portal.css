@@ -835,18 +835,99 @@ body.portal-modal-open { overflow: hidden; }
 }
 
 .profile-fields-grid-2 {
-    margin-top: 1rem;
+    margin-top: 0;
+}
+
+.profile-form .form-field label {
+    display: block;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    margin-bottom: 0.4rem;
+    color: #334155;
+}
+
+.profile-form .form-field input[type="text"],
+.profile-form .form-field input[type="email"],
+.profile-form .form-field input[type="password"],
+.profile-form .form-field input[type="tel"],
+.profile-form .form-field input[type="number"] {
+    width: 100%;
+    padding: 0.7rem 0.9rem;
+    border: 1px solid #e2e8f0;
+    border-radius: var(--radius-sm);
+    font-size: 0.9rem;
+    font-family: inherit;
+    margin-bottom: 0;
+    box-sizing: border-box;
+    background: #fff;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.profile-form .form-field input:disabled {
+    background: #f8fafc;
+    color: #64748b;
+    cursor: not-allowed;
+}
+
+.profile-form .form-field input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+}
+
+.profile-form .form-field .form-field-hint {
+    margin: 0.35rem 0 0;
+}
+
+.profile-password-details {
+    border: 1px solid #e2e8f0;
+    border-radius: var(--radius-sm);
+    padding: 0;
+    background: #f8fafc;
+    overflow: hidden;
 }
 
 .profile-password-details summary {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.85rem 1rem;
     cursor: pointer;
     font-weight: 600;
     font-size: 0.875rem;
     color: var(--primary);
+    list-style: none;
+    user-select: none;
+}
+
+.profile-password-details summary::-webkit-details-marker {
+    display: none;
+}
+
+.profile-password-details summary::before {
+    content: '';
+    display: inline-block;
+    width: 0;
+    height: 0;
+    border-top: 5px solid transparent;
+    border-bottom: 5px solid transparent;
+    border-left: 6px solid currentColor;
+    transition: transform 0.15s ease;
+    flex-shrink: 0;
+}
+
+.profile-password-details[open] summary::before {
+    transform: rotate(90deg);
 }
 
 .profile-password-details[open] summary {
-    margin-bottom: 0.75rem;
+    border-bottom: 1px solid #e2e8f0;
+    margin-bottom: 0;
+}
+
+.profile-password-details .profile-fields-grid {
+    padding: 1rem;
+    background: #fff;
 }
 
 .profile-form-actions {

@@ -10,6 +10,9 @@ use App\Models\CaseFile;
 use App\Models\Message;
 use App\Models\User;
 use App\Services\AuditService;
+use App\Services\CaseMessageNotifyService;
+use App\Support\CaseMessageVisibility;
+use App\Support\CompanyFilter;
 use App\Support\Toast;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -17,7 +20,10 @@ use Illuminate\Http\Request;
 
 class MessageController extends Controller
 {
-    public function __construct(private AuditService $audit) {}
+    public function __construct(
+        private AuditService $audit,
+        private CaseMessageNotifyService $messageNotify,
+    ) {}
 
     public function index(Request $request, CaseFile $case): JsonResponse
     {
@@ -78,6 +84,7 @@ class MessageController extends Controller
         ]);
 
         CaseMessageSent::dispatch($message);
+        $this->messageNotify->notify($message);
 
         if ($request->expectsJson() || $request->ajax()) {
             return response()->json([
@@ -126,12 +133,7 @@ class MessageController extends Controller
             return $case->assigned_to ? (int) $case->assigned_to : null;
         }
 
-        $clientUser = User::query()
-            ->where('company_id', $case->company_id)
-            ->where('role', UserRole::Client)
-            ->orderByDesc('is_primary')
-            ->orderBy('id')
-            ->first();
+        $clientUser = CompanyFilter::clientUsersForCompany((int) $case->company_id)->first();
 
         if ($clientUser) {
             return (int) $clientUser->id;
@@ -191,7 +193,7 @@ class MessageController extends Controller
             return;
         }
 
-        if ($user->hasRole(UserRole::Client) && (int) $case->company_id === (int) $user->company_id) {
+        if ($user->hasRole(UserRole::Client) && \App\Support\CompanyFilter::userCanAccessCompany($user, $case->company_id)) {
             return;
         }
 

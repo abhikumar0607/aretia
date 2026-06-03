@@ -247,7 +247,7 @@ class CaseFile extends Model
         }
 
         if ($viewer->hasRole(UserRole::Client)) {
-            return (int) $this->company_id === (int) $viewer->company_id;
+            return \App\Support\CompanyFilter::userCanAccessCompany($viewer, $this->company_id);
         }
 
         if ($viewer->role->isEmployeeRole()) {

@@ -45,7 +45,7 @@
                 </div>
                 <div class="form-field">
                     <label for="phone">Phone</label>
-                    <input type="number" id="phone" name="phone" value="{{ old('phone', $user->phone) }}" inputmode="numeric" autocomplete="tel" min="0" step="1">
+                    <input type="tel" id="phone" name="phone" value="{{ old('phone', $user->phone) }}" inputmode="tel" autocomplete="tel">
                 </div>
                 <div class="form-field">
                     <label for="email">Email</label>
