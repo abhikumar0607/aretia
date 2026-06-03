@@ -1,0 +1,35 @@
+<?php
+
+namespace App\Http\Controllers\SuperAdmin;
+
+use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
+use App\Support\AuditLogFilters;
+use App\Support\CompanyFilter;
+use Illuminate\Http\Request;
+use Illuminate\View\View;
+
+class AuditLogController extends Controller
+{
+    public function index(Request $request): View
+    {
+        $logs = AuditLog::with([
+            'user',
+            'auditable' => fn ($morphTo) => $morphTo->morphWith([
+                \App\Models\CaseFile::class => ['company', 'assignee', 'stage'],
+                \App\Models\Order::class => ['company', 'package'],
+                \App\Models\Report::class => ['caseFile'],
+                \App\Models\Message::class => ['caseFile'],
+            ]),
+        ])
+            ->tap(fn ($query) => AuditLogFilters::apply($query, $request))
+            ->latest()
+            ->paginate(config('portal.per_page'))
+            ->withQueryString();
+
+        $companyOptions = CompanyFilter::optionsForUser($request->user());
+
+        return view('superadmin.audit.index', compact('logs', 'companyOptions'));
+    }
+}
+

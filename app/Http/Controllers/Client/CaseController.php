@@ -4,57 +4,78 @@ namespace App\Http\Controllers\Client;
 
 use App\Http\Controllers\Controller;
 use App\Models\CaseFile;
-use App\Models\WorkflowStage;
+use App\Services\CaseLinkService;
+use App\Services\CaseOrderDocumentService;
+use App\Support\CaseListFilters;
+use App\Support\CompanyFilter;
+use App\Support\Toast;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class CaseController extends Controller
 {
+    public function __construct(
+        private CaseLinkService $caseLinks,
+        private CaseOrderDocumentService $caseDocuments,
+    ) {}
+
     public function index(Request $request): View
     {
-        $companyId = auth()->user()->company_id;
+        $companyIds = CompanyFilter::scopedCompanyIdsForUser($request->user());
 
-        $query = CaseFile::where('company_id', $companyId)
-            ->with(['order.package', 'stage', 'assignee', 'latestReport'])
+        $query = CaseFile::whereIn('company_id', $companyIds)
+            ->with(['company', 'order.package', 'stage', 'assignee', 'latestReport'])
+            ->tap(fn ($q) => CaseListFilters::apply($q, $request))
             ->latest();
-
-        if ($search = trim((string) $request->input('q'))) {
-            $query->where(function ($q) use ($search) {
-                $q->where('reference', 'like', "%{$search}%")
-                    ->orWhereHas('order', fn ($o) => $o->where('subject_name', 'like', "%{$search}%")
-                        ->orWhere('reference', 'like', "%{$search}%"));
-            });
-        }
-
-        if ($stage = $request->input('stage')) {
-            $query->where('workflow_stage_id', $stage);
-        }
 
         $cases = $query->paginate(config('portal.per_page'))->withQueryString();
 
-        $stages = WorkflowStage::where('is_active', true)->orderBy('sort_order')->get();
-
         $stats = [
-            'total' => CaseFile::where('company_id', $companyId)->count(),
-            'in_progress' => CaseFile::where('company_id', $companyId)
+            'total' => CaseFile::whereIn('company_id', $companyIds)->count(),
+            'in_progress' => CaseFile::whereIn('company_id', $companyIds)
                 ->whereDoesntHave('latestReport', fn ($q) => $q->whereNotNull('delivered_at'))
                 ->count(),
-            'completed' => CaseFile::where('company_id', $companyId)
+            'completed' => CaseFile::whereIn('company_id', $companyIds)
                 ->whereHas('latestReport', fn ($q) => $q->whereNotNull('delivered_at'))
                 ->count(),
         ];
 
-        $stageOptions = $stages->pluck('name', 'id')->all();
+        $stageOptions = CaseListFilters::stageOptions();
+        $companyOptions = CompanyFilter::optionsForUser($request->user());
 
-        return view('client.cases.index', compact('cases', 'stats', 'stageOptions'));
+        return view('client.cases.index', [
+            'cases' => $cases,
+            'stats' => $stats,
+            'stageOptions' => $stageOptions,
+            'companyOptions' => $companyOptions,
+            'enableCaseLinking' => true,
+            'linkCasesRoute' => route('client.cases.link'),
+        ]);
+    }
+
+    public function linkRelated(Request $request): RedirectResponse|JsonResponse
+    {
+        $data = $request->validate([
+            'case_ids' => ['required', 'array', 'min:2'],
+            'case_ids.*' => ['integer', 'exists:cases,id'],
+        ]);
+
+        $this->caseLinks->linkCases($data['case_ids'], $request->user());
+
+        return Toast::to(route('client.cases.index'), 'Selected cases are now linked as related.');
     }
 
     public function show(CaseFile $case): View
     {
         abort_unless($case->company_id === auth()->user()->company_id, 403);
 
-        $case->load(['company', 'order.package', 'stage', 'assignee', 'analysts', 'stageHistories.stage', 'stageHistories.user', 'messages.sender', 'documents.uploader', 'latestReport']);
+        $this->caseDocuments->syncFromOrder($case);
 
-        return view('client.cases.show', compact('case'));
+        $case->load(['company', 'order.package', 'stage', 'assignee', 'analysts', 'stageHistories.stage', 'stageHistories.user', 'messages.sender', 'documents.uploader', 'latestReport']);
+        $relatedCases = $this->caseLinks->relatedCasesFor($case);
+
+        return view('client.cases.show', compact('case', 'relatedCases'));
     }
 }

@@ -8,9 +8,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class KycDocument extends Model
 {
     protected $fillable = [
-        'company_id', 'uploaded_by', 'type',
+        'company_id', 'uploaded_by', 'type', 'subtype',
         'original_name', 'path', 'status',
     ];
+
+    public function subtypeLabel(): ?string
+    {
+        return \App\Support\KycDocumentLabels::subtypeLabel($this->type, $this->subtype);
+    }
 
     public function company(): BelongsTo
     {

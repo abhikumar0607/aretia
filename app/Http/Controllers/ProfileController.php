@@ -8,7 +8,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rules\Password;
+use App\Support\PasswordRules;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
@@ -37,7 +37,7 @@ class ProfileController extends Controller
             'avatar_data' => ['nullable', 'string'],
             'avatar_name' => ['nullable', 'string', 'max:255'],
             'remove_avatar' => ['nullable', 'boolean'],
-            'password' => ['nullable', 'confirmed', Password::defaults()],
+            'password' => ['nullable', 'confirmed', PasswordRules::defaults()],
         ]);
 
         $user->name = $data['name'];

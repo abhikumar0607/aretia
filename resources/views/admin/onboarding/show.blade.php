@@ -33,7 +33,10 @@
                         <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                     </div>
                     <div class="doc-item-body">
-                        <strong>{{ $doc->type === 'national_id' ? 'Government ID' : 'Incorporation papers' }}</strong>
+                        <strong>{{ $doc->type === 'national_id' ? 'Government ID' : 'Company Registration Documents' }}</strong>
+                        @if($doc->subtypeLabel())
+                            <span class="cell-sub">{{ $doc->subtypeLabel() }}</span>
+                        @endif
                         <span>{{ $doc->original_name }} &middot; by {{ $doc->uploader->name }}</span>
                     </div>
                     <a href="{{ route('admin.kyc.download', $doc) }}" class="btn btn-secondary btn-sm">Download</a>

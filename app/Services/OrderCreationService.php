@@ -11,6 +11,7 @@ use App\Models\ServicePackage;
 use App\Models\User;
 use App\Models\WorkflowStage;
 use App\Notifications\OrderConfirmedNotification;
+use App\Notifications\OrderSubmittedNotification;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 
@@ -63,9 +64,13 @@ class OrderCreationService
             if ($customRequest === '') {
                 throw new \InvalidArgumentException('custom_request is required for custom orders.');
             }
-            $subjectType = null;
-            $subjectName = null;
-            $subjectDetails = null;
+            $subjectTypeRaw = strtolower(trim((string) ($data['subject_type'] ?? '')));
+            if (! in_array($subjectTypeRaw, ['individual', 'entity'], true)) {
+                throw new \InvalidArgumentException('subject_type must be individual or entity.');
+            }
+            $subjectType = SubjectType::from($subjectTypeRaw);
+            $subjectName = trim((string) ($data['subject_name'] ?? '')) ?: null;
+            $subjectDetails = trim((string) ($data['subject_details'] ?? '')) ?: null;
         } else {
             $subjectTypeRaw = strtolower(trim((string) ($data['subject_type'] ?? '')));
             if (! in_array($subjectTypeRaw, ['individual', 'entity'], true)) {
@@ -81,43 +86,60 @@ class OrderCreationService
         }
 
         $dueDate = $this->dueDates->parseOptional($data['due_date'] ?? null);
+        $autoConfirm = $forAdmin;
 
         $order = Order::create([
             'reference' => Order::generateReference(),
             'company_id' => $company->id,
             'user_id' => $orderUser->id,
             'service_package_id' => $package->id,
-            'status' => OrderStatus::Confirmed,
+            'status' => $autoConfirm ? OrderStatus::Confirmed : OrderStatus::Pending,
             'subject_type' => $subjectType,
             'subject_name' => $subjectName,
             'subject_details' => $subjectDetails,
             'custom_request' => $customRequest,
             'due_date' => $dueDate,
-            'confirmed_at' => now(),
+            'confirmed_at' => $autoConfirm ? now() : null,
         ]);
 
-        $firstStage = WorkflowStage::where('is_active', true)->orderBy('sort_order')->first();
+        if ($autoConfirm) {
+            $case = $this->createCaseForOrder($order);
 
-        $case = CaseFile::create([
-            'reference' => CaseFile::generateReference(),
-            'order_id' => $order->id,
-            'company_id' => $company->id,
-            'workflow_stage_id' => $firstStage?->id,
-            'status' => 'open',
-        ]);
+            $this->audit->log('order.created', $order, [
+                'case_id' => $case->id,
+                'source' => $forAdmin ? 'admin_import' : 'portal',
+                'created_by' => $actingUser->id,
+            ]);
 
-        $this->audit->log('order.created', $order, [
-            'case_id' => $case->id,
-            'source' => 'excel_import',
-            'imported_by' => $actingUser->id,
-        ]);
+            Notification::send($orderUser, new OrderConfirmedNotification($order));
 
-        Notification::send($orderUser, new OrderConfirmedNotification($order));
+            if ($dueDate) {
+                $this->dueDates->notifyDueDateSet($order, false);
+            }
+        } else {
+            $this->audit->log('order.submitted', $order, [
+                'submitted_by' => $actingUser->id,
+            ]);
 
-        if ($dueDate) {
-            $this->dueDates->notifyDueDateSet($order, false);
+            $reviewers = OrderApprovalService::reviewers();
+            if ($reviewers->isNotEmpty()) {
+                Notification::send($reviewers, new OrderSubmittedNotification($order));
+            }
         }
 
         return $order;
+    }
+
+    private function createCaseForOrder(Order $order): CaseFile
+    {
+        $firstStage = WorkflowStage::where('is_active', true)->orderBy('sort_order')->first();
+
+        return CaseFile::create([
+            'reference' => CaseFile::generateReference(),
+            'order_id' => $order->id,
+            'company_id' => $order->company_id,
+            'workflow_stage_id' => $firstStage?->id,
+            'status' => 'open',
+        ]);
     }
 }

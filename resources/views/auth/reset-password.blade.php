@@ -30,7 +30,8 @@
             </div>
             <div class="auth-field">
                 <label for="reset-password">New password</label>
-                <input type="password" id="reset-password" name="password" required autocomplete="new-password" minlength="8">
+                <input type="password" id="reset-password" name="password" required autocomplete="new-password" aria-describedby="reset-password-hint">
+                <p class="auth-field-hint" id="reset-password-hint">{{ \App\Support\PasswordRules::hint() }}</p>
             </div>
             <div class="auth-field">
                 <label for="reset-password-confirm">Confirm new password</label>

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Enums\CompanyStatus;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Support\Toast;
@@ -21,7 +22,7 @@ class LoginController extends Controller
     public function login(Request $request): JsonResponse|RedirectResponse
     {
         $credentials = $request->validate([
-            'email' => ['required', 'email'],
+            'email' => ['required', 'string', 'email:rfc'],
             'password' => ['required'],
         ]);
 
@@ -33,6 +34,20 @@ class LoginController extends Controller
             return back()
                 ->withInput($request->only('email'))
                 ->withErrors(['email' => 'Invalid email or password.']);
+        }
+
+        $user = Auth::user();
+
+        if (! $user->is_active || ($user->hasRole(UserRole::Client) && $user->company?->status === CompanyStatus::Suspended)) {
+            Auth::logout();
+
+            if (Toast::wantsJson()) {
+                return Toast::jsonError('Your account access has been removed. Contact support if you need help.');
+            }
+
+            return back()
+                ->withInput($request->only('email'))
+                ->withErrors(['email' => 'Your account access has been removed. Contact support if you need help.']);
         }
 
         $request->session()->regenerate();

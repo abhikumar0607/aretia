@@ -6,10 +6,13 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use ZipArchive;
 
 class PublicUploadService
 {
-    public const MAX_BYTES = 5 * 1024 * 1024; // 5 MB
+    public const MAX_BYTES = 50 * 1024 * 1024; // 50 MB
+
+    public const MAX_MB = 50;
 
     /** @var list<string> */
     public const TYPES = ['kyc', 'orders', 'cases', 'reports', 'avatars'];
@@ -32,7 +35,7 @@ class PublicUploadService
     {
         if (strlen($binary) > self::MAX_BYTES) {
             throw ValidationException::withMessages([
-                'data' => 'File must be 5 MB or smaller.',
+                'data' => 'File must be '.self::MAX_MB.' MB or smaller.',
             ]);
         }
     }
@@ -55,6 +58,86 @@ class PublicUploadService
         file_put_contents(public_path($relative), $binary);
 
         return $relative;
+    }
+
+    /**
+     * @return list<array{name: string, binary: string}>
+     */
+    public function unzipBinary(string $zipBinary, int $maxFiles = 50): array
+    {
+        $this->assertMaxSize($zipBinary);
+
+        $tmpDir = public_path('tmp/uploads');
+        if (! is_dir($tmpDir)) {
+            mkdir($tmpDir, 0755, true);
+        }
+
+        $tmpZip = $tmpDir.DIRECTORY_SEPARATOR.'zip_'.uniqid('', true).'.zip';
+        file_put_contents($tmpZip, $zipBinary);
+
+        $zip = new ZipArchive();
+        $opened = $zip->open($tmpZip);
+        if ($opened !== true) {
+            @unlink($tmpZip);
+            throw ValidationException::withMessages([
+                'data' => 'Invalid ZIP file.',
+            ]);
+        }
+
+        $files = [];
+        $totalBytes = 0;
+
+        for ($i = 0; $i < $zip->numFiles; $i++) {
+            if (count($files) >= $maxFiles) {
+                break;
+            }
+
+            $stat = $zip->statIndex($i);
+            if (! $stat || empty($stat['name'])) {
+                continue;
+            }
+
+            $name = (string) $stat['name'];
+            if (str_ends_with($name, '/')) {
+                continue; // directory
+            }
+
+            // Prevent zip slip and weird paths.
+            $baseName = basename(str_replace('\\', '/', $name));
+            if ($baseName === '' || $baseName === '.' || $baseName === '..') {
+                continue;
+            }
+
+            $contents = $zip->getFromIndex($i);
+            if ($contents === false) {
+                continue;
+            }
+
+            $totalBytes += strlen($contents);
+            if ($totalBytes > self::MAX_BYTES) {
+                $zip->close();
+                @unlink($tmpZip);
+                throw ValidationException::withMessages([
+                    'data' => 'ZIP contents must be '.self::MAX_MB.' MB or smaller in total.',
+                ]);
+            }
+
+            $files[] = [
+                'name' => $baseName,
+                'binary' => $contents,
+            ];
+        }
+
+        $zip->close();
+        @unlink($tmpZip);
+
+        if ($files === []) {
+            throw ValidationException::withMessages([
+                'data' => 'ZIP file is empty.',
+            ]);
+        }
+
+        return $files;
     }
 
     public function absolutePath(string $storedPath): string

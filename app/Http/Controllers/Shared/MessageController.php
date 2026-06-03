@@ -151,6 +151,8 @@ class MessageController extends Controller
             'case_reference' => $caseRef,
             'sender_id' => $message->sender_id,
             'sender_name' => $message->sender->name,
+            'sender_role' => $message->sender->role?->value,
+            'sender_role_label' => $message->sender->role?->label(),
             'recipient_id' => $message->recipient_id,
             'recipient_name' => $message->recipient?->name,
             'body' => $message->body,
@@ -168,9 +170,13 @@ class MessageController extends Controller
             $role = $role->value;
         }
 
+        if (UserRole::tryFrom($role)?->isEmployeeRole()) {
+            return \App\Support\PortalRoute::route('cases.show', $case, true, auth()->user());
+        }
+
         $routeName = match ($role) {
             UserRole::Client->value => 'client.cases.show',
-            UserRole::Analyst->value => 'analyst.cases.show',
+            UserRole::SuperAdmin->value => 'superadmin.cases.show',
             default => 'admin.cases.show',
         };
 
@@ -189,7 +195,7 @@ class MessageController extends Controller
             return;
         }
 
-        if ($user->hasRole(UserRole::Analyst) && $case->hasAnalyst($user)) {
+        if ($user->isEmployee() && $case->hasAnalyst($user)) {
             return;
         }
 
@@ -201,7 +207,7 @@ class MessageController extends Controller
         $user = auth()->user();
 
         if ($user->hasRole(UserRole::Admin) || $user->hasRole(UserRole::SuperAdmin)) {
-            abort(403, 'Case chat is not available for this role.');
+            return;
         }
 
         if (! $case->isChatAvailableFor($user)) {

@@ -25,7 +25,12 @@
     @include('partials.listing-toolbar', [
         'action' => route('client.reports.index'),
         'placeholder' => 'Search report title or case…',
-        'preserve' => ['q'],
+        'filters' => ! empty($companyOptions) ? [[
+            'name' => 'company',
+            'label' => 'All companies',
+            'options' => $companyOptions,
+        ]] : [],
+        'preserve' => ['q', 'company'],
     ])
 
     <div class="data-table-wrap">
@@ -33,6 +38,7 @@
             <thead>
                 <tr>
                     <th>Report</th>
+                    <th>Company</th>
                     <th>Case</th>
                     <th>Package</th>
                     <th>Delivered</th>
@@ -55,7 +61,12 @@
                             </div>
                         </div>
                     </td>
-                    <td><span class="cell-ref-sm">{{ $report->caseFile->reference }}</span></td>
+                    <td>{{ $report->caseFile->company?->name ?? '—' }}</td>
+                    <td>
+                        <a href="{{ route('client.cases.show', $report->caseFile) }}" class="row-link" onclick="event.stopPropagation()">
+                            <span class="cell-ref-sm">{{ $report->caseFile->reference }}</span>
+                        </a>
+                    </td>
                     <td><span class="pill pill-package">{{ $report->caseFile->order->package->name }}</span></td>
                     <td><span class="cell-date">{{ $report->delivered_at->format('d M Y') }}</span></td>
                     <td class="cell-action">
@@ -64,7 +75,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="5">
+                    <td colspan="6">
                         <div class="empty-state">
                             <div class="empty-state-icon">
                                 <svg width="32" height="32" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>

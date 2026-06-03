@@ -38,11 +38,12 @@
                 </div>
                 <div class="auth-field auth-field--full">
                     <label for="reg-phone">Phone</label>
-                    <input type="tel" id="reg-phone" name="phone" value="{{ old('phone') }}" required autocomplete="tel">
+                    <input type="number" id="reg-phone" name="phone" value="{{ old('phone') }}" required inputmode="numeric" autocomplete="tel" min="0" step="1">
                 </div>
                 <div class="auth-field">
                     <label for="reg-password">Password</label>
-                    <input type="password" id="reg-password" name="password" required autocomplete="new-password">
+                    <input type="password" id="reg-password" name="password" required autocomplete="new-password" aria-describedby="reg-password-hint">
+                    <p class="auth-field-hint" id="reg-password-hint">{{ \App\Support\PasswordRules::hint() }}</p>
                 </div>
                 <div class="auth-field">
                     <label for="reg-password-confirm">Confirm password</label>

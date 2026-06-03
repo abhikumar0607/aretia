@@ -26,13 +26,13 @@ class BulkOrderController extends Controller
     public function import(Request $request, OrderCreationService $orderService): JsonResponse|RedirectResponse
     {
         $request->validate([
-            'file' => ['required', 'file', 'mimes:xlsx,xls,csv', 'max:5120'],
+            'file' => ['required', 'file', 'mimes:xlsx,xls,csv', 'max:51200'],
         ]);
 
         $import = new OrdersImport(auth()->user(), false, $orderService);
         Excel::import($import, $request->file('file'));
 
-        $message = "{$import->imported} order(s) imported successfully.";
+        $message = "{$import->imported} order(s) submitted for approval.";
         if (count($import->errors) > 0) {
             $message .= ' Some rows had errors.';
         }

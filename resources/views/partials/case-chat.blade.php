@@ -1,10 +1,10 @@
 @php
     $chatUser = auth()->user();
     $chatPartner = $case->chatPartnerFor($chatUser);
-    $isAnalystSide = $chatUser->role->value === 'analyst' || in_array($chatUser->role->value, ['admin', 'superadmin'], true);
+    $isStaffSide = in_array($chatUser->role->value, ['admin', 'superadmin'], true);
 
-    $chatTitle = $chatPartner?->name ?? ($isAnalystSide ? 'Client user' : 'Analyst');
-    $chatSubtitle = $isAnalystSide
+    $chatTitle = $chatPartner?->name ?? ($isStaffSide ? 'Client user' : 'Analyst');
+    $chatSubtitle = $isStaffSide
         ? trim(($case->company->name ?? 'Company').($chatPartner?->email ? ' · '.$chatPartner->email : ''))
         : ($chatPartner ? 'Assigned analyst' : 'Analyst not assigned yet');
 @endphp

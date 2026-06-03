@@ -26,26 +26,35 @@
 </div>
 
 <div class="listing-panel">
-    @include('partials.listing-toolbar', [
+    @include('partials.cases-listing-toolbar', [
         'action' => route('client.cases.index'),
         'placeholder' => 'Search case or order reference…',
-        'filters' => [[
-            'name' => 'stage',
-            'label' => 'All stages',
-            'options' => $stageOptions,
-        ]],
-        'preserve' => ['q', 'stage'],
+        'stageOptions' => $stageOptions,
+        'companyOptions' => $companyOptions ?? [],
+    ])
+
+    @include('partials.case-link-selection-bar', [
+        'enableCaseLinking' => $enableCaseLinking ?? false,
+        'linkCasesRoute' => $linkCasesRoute ?? null,
     ])
 
     <div class="data-table-wrap">
-        <table class="data-table">
+        <table class="data-table" data-case-link-table>
             <thead>
                 <tr>
+                    @if(!empty($enableCaseLinking))
+                        <th class="cell-checkbox">
+                            <input type="checkbox" id="case-select-all" class="case-select-all" aria-label="Select all on page">
+                        </th>
+                    @endif
                     <th>Case</th>
+                    <th>Company</th>
                     <th>Package</th>
                     <th>Subject</th>
+                    <th>Confirmed</th>
+                    <th>Due date</th>
                     <th>Stage</th>
-                    <th>Analyst</th>
+                    <th>Assigned to</th>
                     <th>Chat</th>
                     <th></th>
                 </tr>
@@ -57,14 +66,27 @@
                     $hasReport = $case->latestReport?->delivered_at;
                 @endphp
                 <tr class="data-table-row" onclick="window.location='{{ route('client.cases.show', $case) }}'">
+                    @if(!empty($enableCaseLinking))
+                        <td class="cell-checkbox" onclick="event.stopPropagation()">
+                            <input type="checkbox" class="case-select-checkbox" value="{{ $case->id }}" aria-label="Select {{ $case->reference }}">
+                        </td>
+                    @endif
                     <td>
                         <div class="cell-primary">
-                            <span class="cell-ref">{{ $case->reference }}</span>
+                            <a href="{{ route('client.cases.show', $case) }}" class="row-link" onclick="event.stopPropagation()">
+                                <span class="cell-ref">{{ $case->reference }}</span>
+                            </a>
                             <span class="cell-sub">{{ $case->order->reference }}</span>
+                            @if($case->case_link_group_id)
+                                <span class="pill pill-muted case-linked-pill">Related</span>
+                            @endif
                         </div>
                     </td>
+                    <td>{{ $case->company?->name ?? '—' }}</td>
                     <td><span class="pill pill-package">{{ $case->order->package->name }}</span></td>
                     <td><span class="cell-muted">{{ $case->order->subject_name ?? 'Custom' }}</span></td>
+                    <td><span class="cell-date">{{ $case->order->confirmed_at?->format('d M Y') ?? '—' }}</span></td>
+                    <td><span class="cell-date">{{ $case->order->due_date?->format('d M Y') ?? 'TBD' }}</span></td>
                     <td>
                         @if($case->stage)
                             <span class="stage-pill" style="--stage-color: {{ $stageColor }}">{{ $case->stage->name }}</span>
@@ -104,14 +126,19 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="7">
+                    <td colspan="{{ !empty($enableCaseLinking) ? 11 : 10 }}">
                         <div class="empty-state">
-                            <div class="empty-state-icon">
-                                <svg width="32" height="32" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
-                            </div>
-                            <h3>No cases yet</h3>
-                            <p>Cases are created automatically when you confirm an order.</p>
-                            <a href="{{ route('client.orders.create') }}" class="btn btn-primary" style="margin-top:1.25rem;">Place an order</a>
+                            @if(\App\Support\CaseListFilters::hasActiveFilters(request()))
+                                <h3>No results</h3>
+                                <p>No cases match your filters.</p>
+                            @else
+                                <div class="empty-state-icon">
+                                    <svg width="32" height="32" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
+                                </div>
+                                <h3>No cases yet</h3>
+                                <p>Cases are created after your orders are approved.</p>
+                                <a href="{{ route('client.orders.create') }}" class="btn btn-primary" style="margin-top:1.25rem;">Place an order</a>
+                            @endif
                         </div>
                     </td>
                 </tr>
@@ -122,4 +149,12 @@
 
     {{ $cases->links() }}
 </div>
+
 @endsection
+
+@push('scripts')
+<script src="{{ asset('js/listing-filters.js') }}" defer></script>
+@if(!empty($enableCaseLinking))
+<script src="{{ asset('js/case-link-selection.js') }}" defer></script>
+@endif
+@endpush

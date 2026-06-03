@@ -28,7 +28,7 @@
                         <span class="btn btn-secondary btn-sm">Choose photo</span>
                         <input type="file" id="profile-avatar-input" accept="image/jpeg,image/png,image/webp" hidden>
                     </label>
-                    <p class="form-field-hint">JPG, PNG or WebP. Max 5 MB.</p>
+                    <p class="form-field-hint">JPG, PNG or WebP. Max {{ \App\Services\PublicUploadService::MAX_MB }} MB.</p>
                     @if($user->avatar_path)
                         <label class="profile-remove-avatar">
                             <input type="checkbox" name="remove_avatar" value="1">
@@ -45,7 +45,7 @@
                 </div>
                 <div class="form-field">
                     <label for="phone">Phone</label>
-                    <input type="tel" id="phone" name="phone" value="{{ old('phone', $user->phone) }}">
+                    <input type="number" id="phone" name="phone" value="{{ old('phone', $user->phone) }}" inputmode="numeric" autocomplete="tel" min="0" step="1">
                 </div>
                 <div class="form-field">
                     <label for="email">Email</label>
@@ -63,7 +63,8 @@
                 <div class="profile-fields-grid profile-fields-grid-2">
                     <div class="form-field">
                         <label for="password">New password</label>
-                        <input type="password" id="password" name="password" autocomplete="new-password">
+                        <input type="password" id="password" name="password" autocomplete="new-password" aria-describedby="profile-password-hint">
+                        <p class="form-field-hint" id="profile-password-hint">{{ \App\Support\PasswordRules::hint() }}</p>
                     </div>
                     <div class="form-field">
                         <label for="password_confirmation">Confirm password</label>

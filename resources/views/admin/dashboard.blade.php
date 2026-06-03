@@ -1,45 +1,33 @@
 @extends('layouts.portal')
 
-@section('title', 'Admin Dashboard')
+@section('title', 'Dashboard')
 @section('container_class', 'page-container-dashboard')
 
 @section('content')
 
 @include('partials.dashboard-shell', [
 
-    'heading' => 'Admin dashboard',
+    'dashboardFilters' => $dashboardFilters,
 
-    'description' => 'Manage onboarding, orders, cases, and compliance.',
+    'filterAction' => route('admin.dashboard'),
+
+    'heading' => 'Overview',
+
+    'description' => 'Platform totals for cases and orders in your current filter view.',
 
     'statCards' => [
 
-        ['label' => 'Client companies', 'value' => $stats['client_companies'], 'accent' => true],
+        ['label' => 'Total cases', 'value' => $stats['total_cases'], 'accent' => true],
 
-        ['label' => 'Active clients', 'value' => $stats['active_clients']],
+        ['label' => 'Total orders', 'value' => $stats['total_orders']],
 
-        ['label' => 'Analysts', 'value' => $stats['analysts']],
+        ['label' => 'Confirmed orders', 'value' => $stats['confirmed_orders']],
 
-        ['label' => 'Pending onboarding', 'value' => $stats['pending_onboarding'], 'warn' => $stats['pending_onboarding'] > 0],
-
-        ['label' => 'Total orders', 'value' => $stats['orders']],
-
-        ['label' => 'Open cases', 'value' => $stats['open_cases']],
+        ['label' => 'Pending orders', 'value' => $stats['pending_orders'], 'warn' => $stats['pending_orders'] > 0],
 
     ],
 
     'charts' => $charts,
-
-    'quickLinks' => [
-
-        ['title' => 'Clients', 'text' => $stats['client_companies'].' companies registered', 'route' => 'admin.clients.index'],
-
-        ['title' => 'Analysts', 'text' => $stats['analysts'].' analysts · add new', 'route' => 'admin.analysts.index'],
-
-        ['title' => 'Onboarding', 'text' => 'Review KYC submissions', 'route' => 'admin.onboarding.index'],
-
-        ['title' => 'Cases', 'text' => 'Assign analysts & track stages', 'route' => 'admin.cases.index'],
-
-    ],
 
 ])
 

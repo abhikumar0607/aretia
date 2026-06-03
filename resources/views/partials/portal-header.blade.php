@@ -1,7 +1,10 @@
 @auth
 @php
     $headerUser = auth()->user();
-    $showChatInbox = in_array($headerUser->role->value, ['client', 'analyst'], true);
+    $showChatInbox = $headerUser->hasRole(\App\Enums\UserRole::Client)
+        || $headerUser->isEmployee()
+        || $headerUser->hasRole(\App\Enums\UserRole::Admin)
+        || $headerUser->hasRole(\App\Enums\UserRole::SuperAdmin);
 @endphp
 <div class="portal-topbar">
     <div class="portal-topbar-inner">

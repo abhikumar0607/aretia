@@ -18,48 +18,66 @@ class DashboardChartData
     /**
      * @return list<array{id: string, title: string, labels: list<string>, values: list<int>, colors: list<string>}>
      */
-    public static function forAdmin(): array
+    public static function forAdmin(?DashboardFilters $filters = null): array
     {
+        $filters ??= new DashboardFilters;
+
         return [
-            self::buildChart('admin', 'onboarding', 'Clients by onboarding status', self::companyStatusSlices()),
-            self::buildChart('admin', 'orders', 'Orders by status', self::orderStatusSlices()),
-            self::buildChart('admin', 'cases-stage', 'Cases by workflow stage', self::casesByStage()),
+            self::buildChart('admin', 'cases-stage', 'Cases by workflow stage', self::platformCasesByStage($filters), true),
+            self::buildChart('admin', 'orders', 'Orders by status', self::orderStatusSlices(
+                null,
+                fn (Builder $q) => $filters->applyDateScope($q),
+                true
+            ), true),
         ];
     }
 
     /**
      * @return list<array{id: string, title: string, labels: list<string>, values: list<int>, colors: list<string>}>
      */
-    public static function forSuperAdmin(): array
+    public static function forSuperAdmin(?DashboardFilters $filters = null): array
     {
+        $filters ??= new DashboardFilters;
+
         return [
-            ...self::forAdmin(),
-            self::buildChart('superadmin', 'users-role', 'Platform users by role', self::usersByRoleSlices()),
+            self::buildChart('superadmin', 'cases-stage', 'Cases by workflow stage', self::platformCasesByStage($filters), true),
+            self::buildChart('superadmin', 'orders', 'Orders by status', self::orderStatusSlices(
+                null,
+                fn (Builder $q) => $filters->applyDateScope($q),
+                true
+            ), true),
         ];
     }
 
     /**
      * @return list<array{id: string, title: string, labels: list<string>, values: list<int>, colors: list<string>}>
      */
-    public static function forClient(?int $companyId): array
+    public static function forClient(?int $companyId, ?DashboardFilters $filters = null): array
     {
+        $filters ??= new DashboardFilters;
+
         if (! $companyId) {
             return [
-                self::buildChart('client', 'orders', 'Orders by status', []),
                 self::buildChart('client', 'cases-stage', 'Cases by workflow stage', []),
-                self::buildChart('client', 'reports', 'Reports', []),
+                self::buildChart('client', 'orders', 'Orders by status', []),
+                self::buildChart('client', 'reports', 'Reports on your cases', []),
             ];
         }
 
+        $companyScope = fn (Builder $q) => $q->where('company_id', $companyId);
+
         return [
+            self::buildChart('client', 'cases-stage', 'Your cases by stage', self::companyCasesByStage($companyId, $filters), true),
             self::buildChart('client', 'orders', 'Orders by status', self::orderStatusSlices(
-                fn (Builder $q) => $q->where('company_id', $companyId)
-            )),
-            self::buildChart('client', 'cases-stage', 'Cases by workflow stage', self::casesByStage(
-                fn (Builder $q) => $q->where('company_id', $companyId)
-            )),
-            self::buildChart('client', 'reports', 'Reports', self::reportSlices(
-                fn (Builder $q) => $q->whereHas('caseFile', fn (Builder $c) => $c->where('company_id', $companyId))
+                $companyScope,
+                fn (Builder $q) => $filters->applyDateScope($q),
+                true
+            ), true),
+            self::buildChart('client', 'reports', 'Reports on your cases', self::reportSlices(
+                fn (Builder $q) => $q->whereHas('caseFile', fn (Builder $c) => $c->where('company_id', $companyId)),
+                $filters,
+                false,
+                true
             )),
         ];
     }
@@ -67,26 +85,17 @@ class DashboardChartData
     /**
      * @return list<array{id: string, title: string, labels: list<string>, values: list<int>, colors: list<string>}>
      */
-    public static function forAnalyst(int $userId): array
+    public static function forAnalyst(int $userId, ?DashboardFilters $filters = null): array
     {
+        $filters ??= new DashboardFilters;
         $caseScope = fn (Builder $q) => $q->forAnalyst($userId);
 
-        $byStatus = [];
-        foreach (CaseFile::query()->forAnalyst($userId)->selectRaw('status, count(*) as total')->groupBy('status')->get() as $row) {
-            if ((int) $row->total > 0) {
-                $byStatus[] = [
-                    'label' => ucfirst((string) $row->status),
-                    'value' => (int) $row->total,
-                    'color' => $row->status === 'open' ? '#4f46e5' : '#64748b',
-                ];
-            }
-        }
-
         return [
-            self::buildChart('analyst', 'cases-stage', 'Cases by workflow stage', self::casesByStage($caseScope)),
-            self::buildChart('analyst', 'cases-status', 'Cases by status', $byStatus),
-            self::buildChart('analyst', 'reports', 'Reports on my cases', self::reportSlices(
-                fn (Builder $q) => $q->whereHas('caseFile', fn (Builder $c) => $c->forAnalyst($userId))
+            self::buildChart('analyst', 'cases-stage', 'My cases by stage', self::casesByStage($caseScope, $filters, false, true)),
+            self::buildChart('analyst', 'reports', 'Reports on assigned cases', self::reportSlices(
+                fn (Builder $q) => $q->whereHas('caseFile', fn (Builder $c) => $c->forAnalyst($userId)),
+                $filters,
+                true
             )),
         ];
     }
@@ -118,9 +127,10 @@ class DashboardChartData
 
     /**
      * @param  callable(Builder): void|null  $scope
+     * @param  callable(Builder): void|null  $dateScope
      * @return list<array{label: string, value: int, color: string}>
      */
-    private static function orderStatusSlices(?callable $scope = null): array
+    private static function orderStatusSlices(?callable $scope = null, ?callable $dateScope = null, bool $includeAllStatuses = false): array
     {
         $rows = [];
         foreach (OrderStatus::cases() as $status) {
@@ -128,14 +138,87 @@ class DashboardChartData
             if ($scope) {
                 $scope($query);
             }
+            if ($dateScope) {
+                $dateScope($query);
+            }
             $count = $query->count();
-            if ($count > 0) {
+            if ($count > 0 || $includeAllStatuses) {
                 $rows[] = [
                     'label' => self::orderStatusLabel($status),
                     'value' => $count,
                     'color' => self::orderStatusColor($status),
                 ];
             }
+        }
+
+        return $rows;
+    }
+
+    /**
+     * Platform-wide case counts per workflow stage (all cases, not limited by created_at).
+     *
+     * @return list<array{label: string, value: int, color: string}>
+     */
+    private static function platformCasesByStage(?DashboardFilters $filters = null): array
+    {
+        $filters ??= new DashboardFilters;
+        $stages = WorkflowStage::where('is_active', true)->orderBy('sort_order')->get();
+        $rows = [];
+
+        foreach ($stages as $stage) {
+            if (! $filters->shouldIncludeStageSlug($stage->slug)) {
+                continue;
+            }
+
+            $query = CaseFile::query();
+            $filters->applyCaseScope($query);
+            $query->where(function (Builder $q) use ($stage) {
+                $q->where('workflow_stage_id', $stage->id);
+                if ($stage->slug === CaseWorkflow::SLUG_ASSIGNED) {
+                    $q->orWhereNull('workflow_stage_id');
+                }
+            });
+
+            $rows[] = [
+                'label' => $stage->name,
+                'value' => $query->count(),
+                'color' => $stage->color ?: '#94a3b8',
+            ];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * Company cases per workflow stage.
+     *
+     * @return list<array{label: string, value: int, color: string}>
+     */
+    private static function companyCasesByStage(int $companyId, ?DashboardFilters $filters = null): array
+    {
+        $filters ??= new DashboardFilters;
+        $stages = WorkflowStage::where('is_active', true)->orderBy('sort_order')->get();
+        $rows = [];
+
+        foreach ($stages as $stage) {
+            if (! $filters->shouldIncludeStageSlug($stage->slug)) {
+                continue;
+            }
+
+            $query = CaseFile::where('company_id', $companyId);
+            $filters->applyCaseScope($query);
+            $query->where(function (Builder $q) use ($stage) {
+                $q->where('workflow_stage_id', $stage->id);
+                if ($stage->slug === CaseWorkflow::SLUG_ASSIGNED) {
+                    $q->orWhereNull('workflow_stage_id');
+                }
+            });
+
+            $rows[] = [
+                'label' => $stage->name,
+                'value' => $query->count(),
+                'color' => $stage->color ?: '#94a3b8',
+            ];
         }
 
         return $rows;
@@ -158,7 +241,7 @@ class DashboardChartData
             $count = User::where('role', $role)->count();
             if ($count > 0) {
                 $rows[] = [
-                    'label' => $role->label(),
+                    'label' => $role->chartLabel(),
                     'value' => $count,
                     'color' => $colors[$role->value] ?? '#94a3b8',
                 ];
@@ -172,10 +255,28 @@ class DashboardChartData
      * @param  callable(Builder): void  $scope
      * @return list<array{label: string, value: int, color: string}>
      */
-    private static function reportSlices(callable $scope): array
-    {
+    private static function reportSlices(
+        callable $scope,
+        ?DashboardFilters $filters = null,
+        bool $assignedWorkload = false,
+        bool $companyCasesOnly = false,
+    ): array {
         $base = Report::query();
         $scope($base);
+
+        if ($filters) {
+            $filters->applyReportDateScope($base);
+
+            $base->whereHas('caseFile', function (Builder $case) use ($filters, $assignedWorkload, $companyCasesOnly) {
+                if ($assignedWorkload) {
+                    $filters->applyAssignedCaseScopeWithPeriod($case);
+                } elseif ($companyCasesOnly) {
+                    $filters->applyCaseScope($case);
+                } else {
+                    $filters->applyCaseScope($case);
+                }
+            });
+        }
 
         $delivered = (clone $base)->whereNotNull('delivered_at')->count();
         $pending = (clone $base)->whereNull('delivered_at')->count();
@@ -192,21 +293,39 @@ class DashboardChartData
     }
 
     /**
-     * @param  callable(Builder): void|null  $scope
+     * @param  callable(Builder)|null  $scope
      * @return list<array{label: string, value: int, color: string}>
      */
-    private static function casesByStage(?callable $scope = null): array
-    {
+    private static function casesByStage(
+        ?callable $scope = null,
+        ?DashboardFilters $filters = null,
+        bool $includeEmptyStages = false,
+        bool $assignedWorkload = false,
+    ): array {
+        $filters ??= new DashboardFilters;
         $stages = WorkflowStage::where('is_active', true)->orderBy('sort_order')->get();
         $rows = [];
 
+        $applyCaseFilters = function (Builder $query) use ($filters, $assignedWorkload): void {
+            if ($assignedWorkload) {
+                $filters->applyAssignedCaseScopeWithPeriod($query);
+            } else {
+                $filters->applyCaseScope($query);
+            }
+        };
+
         foreach ($stages as $stage) {
+            if (! $filters->shouldIncludeStageSlug($stage->slug)) {
+                continue;
+            }
+
             $query = CaseFile::where('workflow_stage_id', $stage->id);
             if ($scope) {
                 $scope($query);
             }
+            $applyCaseFilters($query);
             $count = $query->count();
-            if ($count > 0) {
+            if ($count > 0 || $includeEmptyStages) {
                 $rows[] = [
                     'label' => $stage->name,
                     'value' => $count,
@@ -219,10 +338,11 @@ class DashboardChartData
         if ($scope) {
             $scope($unassigned);
         }
+        $applyCaseFilters($unassigned);
         $unassignedCount = $unassigned->count();
-        if ($unassignedCount > 0) {
+        if ($unassignedCount > 0 || ($includeEmptyStages && $filters->shouldIncludeStageSlug(null))) {
             $rows[] = [
-                'label' => 'Unassigned',
+                'label' => 'Unassigned stage',
                 'value' => $unassignedCount,
                 'color' => '#cbd5e1',
             ];
@@ -232,18 +352,124 @@ class DashboardChartData
     }
 
     /**
-     * @param  list<array{label: string, value: int, color: string}>  $slices
-     * @return array{id: string, title: string, labels: list<string>, values: list<int>, colors: list<string>}
+     * @param  callable(Builder): void  $scope
+     * @return list<array{label: string, value: int, color: string}>
      */
-    private static function buildChart(string $prefix, string $key, string $title, array $slices): array
+    private static function caseStatusSlices(callable $scope, ?DashboardFilters $filters = null): array
     {
+        $filters ??= new DashboardFilters;
+        $query = CaseFile::query();
+        $scope($query);
+        $filters->applyCaseScope($query);
+
+        $rows = [];
+        foreach ($query->selectRaw('status, count(*) as total')->groupBy('status')->orderBy('status')->get() as $row) {
+            $count = (int) $row->total;
+            if ($count < 1) {
+                continue;
+            }
+            $status = (string) $row->status;
+            $rows[] = [
+                'label' => ucfirst($status),
+                'value' => $count,
+                'color' => $status === 'open' ? '#4f46e5' : '#64748b',
+            ];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * @param  list<array{label: string, value: int, color: string}>  $slices
+     * @return array{
+     *     id: string,
+     *     key: string,
+     *     title: string,
+     *     subtitle: string,
+     *     type: string,
+     *     variant: string,
+     *     layout: string,
+     *     horizontal?: bool,
+     *     labels: list<string>,
+     *     values: list<int>,
+     *     colors: list<string>
+     * }
+     */
+    private static function buildChart(string $prefix, string $key, string $title, array $slices, bool $showAllSlices = false): array
+    {
+        $meta = self::chartMeta($key);
+        $nonZero = array_values(array_filter($slices, fn (array $slice): bool => ($slice['value'] ?? 0) > 0));
+
         return [
             'id' => $prefix.'-chart-'.$key,
+            'key' => $key,
             'title' => $title,
+            'subtitle' => $meta['subtitle'],
+            'type' => $meta['type'],
+            'variant' => $meta['variant'],
+            'layout' => $meta['layout'],
+            'horizontal' => $meta['horizontal'] ?? false,
+            'show_all_slices' => $showAllSlices,
             'labels' => array_column($slices, 'label'),
             'values' => array_column($slices, 'value'),
             'colors' => array_column($slices, 'color'),
+            'canvas_labels' => array_column($nonZero, 'label'),
+            'canvas_values' => array_column($nonZero, 'value'),
+            'canvas_colors' => array_column($nonZero, 'color'),
         ];
+    }
+
+    /**
+     * @return array{type: string, variant: string, subtitle: string, layout: string, horizontal?: bool}
+     */
+    private static function chartMeta(string $key): array
+    {
+        return match ($key) {
+            'onboarding' => [
+                'type' => 'doughnut',
+                'variant' => 'onboarding',
+                'subtitle' => 'Onboarding pipeline',
+                'layout' => 'ring',
+            ],
+            'orders' => [
+                'type' => 'bar',
+                'variant' => 'orders',
+                'subtitle' => 'Pending, confirmed, and rejected',
+                'layout' => 'bars-h',
+                'horizontal' => true,
+            ],
+            'cases-stage' => [
+                'type' => 'pie',
+                'variant' => 'stages',
+                'subtitle' => 'All cases across pipeline stages',
+                'layout' => 'ring',
+            ],
+            'reports' => [
+                'type' => 'bar',
+                'variant' => 'reports',
+                'subtitle' => 'Delivered vs in progress',
+                'layout' => 'bars-h',
+                'horizontal' => true,
+            ],
+            'cases-status' => [
+                'type' => 'doughnut',
+                'variant' => 'status',
+                'subtitle' => 'Open vs other statuses',
+                'layout' => 'ring',
+            ],
+            'users-role' => [
+                'type' => 'pie',
+                'variant' => 'users',
+                'subtitle' => 'Platform team breakdown',
+                'layout' => 'ring',
+            ],
+            default => [
+                'type' => 'doughnut',
+                'variant' => 'default',
+                'subtitle' => 'Distribution overview',
+                'layout' => 'ring',
+            ],
+        };
     }
 
     private static function companyStatusLabel(CompanyStatus $status): string
@@ -268,21 +494,15 @@ class DashboardChartData
 
     private static function orderStatusLabel(OrderStatus $status): string
     {
-        return match ($status) {
-            OrderStatus::Draft => 'Draft',
-            OrderStatus::Pending => 'Pending',
-            OrderStatus::Confirmed => 'Confirmed',
-            OrderStatus::Cancelled => 'Cancelled',
-        };
+        return $status->label();
     }
 
     private static function orderStatusColor(OrderStatus $status): string
     {
         return match ($status) {
-            OrderStatus::Draft => '#94a3b8',
             OrderStatus::Pending => '#f59e0b',
             OrderStatus::Confirmed => '#059669',
-            OrderStatus::Cancelled => '#dc2626',
+            OrderStatus::Rejected => '#dc2626',
         };
     }
 }

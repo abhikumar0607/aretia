@@ -80,10 +80,14 @@
         var isMine = parseInt(msg.sender_id, 10) === currentUserId;
         var time = msg.created_at_label || '';
         var ticks = renderTicks(msg, isMine);
+        var senderName = msg.sender_name || '';
+        var senderRole = msg.sender_role_label || msg.sender_role || '';
+        var senderMeta = senderRole ? (senderName + ' · ' + senderRole) : senderName;
 
         return (
             '<div class="case-chat-bubble-wrap' + (isMine ? ' is-mine' : ' is-theirs') + '" data-msg-id="' + escapeHtml(String(msg.id)) + '">' +
                 '<div class="case-chat-bubble">' +
+                    '<div class="case-chat-bubble-meta">' + escapeHtml(senderMeta) + '</div>' +
                     '<p class="case-chat-bubble-text">' + escapeHtml(msg.body) + '</p>' +
                     '<div class="case-chat-bubble-foot">' +
                         '<span class="case-chat-bubble-time">' + escapeHtml(time) + '</span>' +

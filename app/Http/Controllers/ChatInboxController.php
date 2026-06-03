@@ -47,7 +47,7 @@ class ChatInboxController extends Controller
             $query->whereHas('caseFile', fn ($q) => $q
                 ->where('company_id', $user->company_id)
                 ->whereNotNull('assigned_to'));
-        } elseif ($user->hasRole(UserRole::Analyst)) {
+        } elseif ($user->isEmployee()) {
             $query->whereHas('caseFile', fn ($q) => $q->forAnalyst($user->id));
         }
 
@@ -85,12 +85,15 @@ class ChatInboxController extends Controller
             return route('client.cases.show', $case);
         }
 
-        return route('analyst.cases.show', $case);
+        return \App\Support\PortalRoute::caseShowRoute($user, $case);
     }
 
     private function ensureChatInboxRole($user): void
     {
-        if ($user->hasRole(UserRole::Client) || $user->hasRole(UserRole::Analyst)) {
+        if ($user->hasRole(UserRole::Client)
+            || $user->isEmployee()
+            || $user->hasRole(UserRole::Admin)
+            || $user->hasRole(UserRole::SuperAdmin)) {
             return;
         }
 

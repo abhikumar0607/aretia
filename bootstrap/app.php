@@ -20,6 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->web(append: [
             \App\Http\Middleware\JsonToastResponse::class,
+            \App\Http\Middleware\EnsureUserActive::class,
         ]);
 
         $middleware->redirectGuestsTo('/login');

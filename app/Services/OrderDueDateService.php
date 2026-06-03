@@ -68,11 +68,13 @@ class OrderDueDateService
             ->where('role', UserRole::Client)
             ->get();
 
-        $analyst = $order->caseFile?->assignee;
-        if ($analyst) {
-            $recipients = $recipients->push($analyst)->unique('id')->values();
+        if ($order->caseFile) {
+            $order->caseFile->loadMissing('analysts');
+            foreach ($order->caseFile->analysts as $teamMember) {
+                $recipients = $recipients->push($teamMember);
+            }
         }
 
-        return $recipients;
+        return $recipients->unique('id')->values();
     }
 }

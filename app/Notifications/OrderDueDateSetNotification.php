@@ -84,13 +84,13 @@ class OrderDueDateSetNotification extends Notification implements ShouldBroadcas
 
     private function orderUrl(object $notifiable): string
     {
-        if ($notifiable instanceof \App\Models\User && $notifiable->hasRole(\App\Enums\UserRole::Analyst)) {
+        if ($notifiable instanceof \App\Models\User && $notifiable->isEmployee()) {
             $case = $this->order->caseFile;
             if ($case && $case->hasAnalyst($notifiable)) {
-                return route('analyst.cases.show', $case);
+                return \App\Support\PortalRoute::caseShowRoute($notifiable, $case);
             }
 
-            return route('analyst.dashboard');
+            return route($notifiable->role->dashboardRoute());
         }
 
         return route('client.orders.show', $this->order);

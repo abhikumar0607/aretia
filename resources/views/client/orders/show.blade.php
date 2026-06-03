@@ -16,6 +16,7 @@
     'caseRoute' => $caseFile ? route('client.cases.show', $caseFile) : null,
     'enableCaseChat' => $canCaseChat,
     'caseChatLabel' => $orderChatPartner ? 'Chat with '.$orderChatPartner->name : null,
+    'documentPreviewRoute' => 'client.orders.documents.preview',
     'documentDownloadRoute' => 'client.orders.documents.download',
     'documentUploadRoute' => route('client.orders.documents.store', $order),
     'dueDateAction' => route('client.orders.due-date', $order),

@@ -22,7 +22,16 @@ class EnsureClientOnboarded
             return $next($request);
         }
 
-        $allowed = ['client.onboarding', 'client.onboarding.store', 'logout'];
+        $allowed = [
+            'client.onboarding',
+            'client.onboarding.account',
+            'client.onboarding.account.update',
+            'client.onboarding.store',
+            'client.onboarding.submit',
+            'client.onboarding.reopen',
+            'client.onboarding.document',
+            'logout',
+        ];
 
         if (in_array($request->route()?->getName(), $allowed, true)) {
             return $next($request);
