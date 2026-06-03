@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Rules\StrictEmail;
+use App\Support\PasswordRules;
 use App\Support\Toast;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\JsonResponse;
@@ -27,8 +29,8 @@ class ResetPasswordController extends Controller
     {
         $request->validate([
             'token' => ['required'],
-            'email' => ['required', 'email'],
-            'password' => ['required', 'confirmed', 'min:8'],
+            'email' => ['required', 'string', new StrictEmail],
+            'password' => ['required', 'confirmed', PasswordRules::defaults()],
         ]);
 
         $status = Password::reset(

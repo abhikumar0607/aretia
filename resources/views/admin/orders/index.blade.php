@@ -1,53 +1,104 @@
-@extends('layouts.portal')
-@section('title', 'Orders')
-@section('container_class', 'page-container-wide')
-@section('content')
-<header class="listing-hero">
-    <div class="listing-hero-text">
-        <h1>All orders</h1>
-        <p>Every client order across the platform.</p>
-    </div>
-    <div class="listing-hero-actions">
-        <a href="{{ route('admin.orders.import') }}" class="btn btn-primary">Bulk import (Excel)</a>
-    </div>
-</header>
-
-<div class="listing-panel">
-    <div class="data-table-wrap">
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>Reference</th>
-                    <th>Company</th>
-                    <th>Package</th>
-                    <th>Due</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-            @forelse($orders as $order)
-                <tr class="data-table-row">
-                    <td><span class="cell-ref">{{ $order->reference }}</span></td>
-                    <td>{{ $order->company->name }}</td>
-                    <td><span class="pill pill-package">{{ $order->package->name }}</span></td>
-                    <td><span class="cell-date">{{ $order->due_date?->format('d M Y') ?? 'TBD' }}</span></td>
-                    <td class="cell-action">
-                        <a href="{{ route('admin.orders.show', $order) }}" class="btn btn-secondary btn-sm">View</a>
-                    </td>
-                </tr>
-            @empty
-                <tr>
-                    <td colspan="5">
-                        <div class="empty-state">
-                            <h3>No orders yet</h3>
-                            <p>Orders will appear here when clients place them.</p>
-                        </div>
-                    </td>
-                </tr>
-            @endforelse
-            </tbody>
-        </table>
-    </div>
-    {{ $orders->links() }}
-</div>
-@endsection
+@extends('layouts.portal')
+
+@section('title', 'Orders')
+
+@section('container_class', 'page-container-wide')
+
+@section('content')
+
+<header class="listing-hero">
+    <div class="listing-hero-text">
+        <h1>All orders</h1>
+        <p>Review client submissions and manage orders across the platform.</p>
+    </div>
+    <div class="listing-hero-actions">
+        <a href="{{ route('admin.orders.create') }}" class="btn btn-primary">
+            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            New order
+        </a>
+        <a href="{{ route('admin.orders.import') }}" class="btn btn-secondary">
+            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+            Bulk import
+        </a>
+        @if($stats['pending'] > 0)
+            <span class="pill pill-package">{{ $stats['pending'] }} awaiting approval</span>
+        @endif
+    </div>
+</header>
+
+<div class="listing-panel">
+    @include('partials.listing-toolbar', [
+        'action' => route('admin.orders.index'),
+        'placeholder' => 'Search reference, company or subject…',
+        'filters' => [
+            [
+                'name' => 'company',
+                'label' => 'All companies',
+                'options' => $companyOptions,
+            ],
+            [
+                'name' => 'status',
+                'label' => 'All statuses',
+                'options' => $statusOptions,
+            ],
+        ],
+        'showPeriodFilter' => true,
+    ])
+
+    <div class="data-table-wrap">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Reference</th>
+                    <th>Company</th>
+                    <th>Package</th>
+                    <th>Status</th>
+                    <th>Due</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+            @forelse($orders as $order)
+                <tr class="data-table-row">
+                    <td>
+                        <a href="{{ route('admin.orders.show', $order) }}" class="row-link">
+                            <span class="cell-ref">{{ $order->reference }}</span>
+                        </a>
+                    </td>
+                    <td>{{ $order->company->name }}</td>
+                    <td><span class="pill pill-package">{{ $order->package->name }}</span></td>
+                    <td><span class="badge {{ $order->status->badgeClass() }}">{{ $order->status->label() }}</span></td>
+                    <td><span class="cell-date">{{ $order->due_date?->format('d M Y') ?? 'TBD' }}</span></td>
+                    <td class="cell-action">
+                        <a href="{{ route('admin.orders.show', $order) }}" class="btn btn-secondary btn-sm">
+                            {{ $order->status === \App\Enums\OrderStatus::Pending ? 'Review' : 'View' }}
+                        </a>
+                    </td>
+                </tr>
+            @empty
+                <tr>
+                    <td colspan="6">
+                        <div class="empty-state">
+                            @if(\App\Support\OrderListFilters::hasActiveFilters(request()))
+                                <h3>No results</h3>
+                                <p>No orders match your filters. Try adjusting search or filters.</p>
+                            @else
+                                <h3>No orders yet</h3>
+                                <p>Orders will appear here when clients place them.</p>
+                            @endif
+                        </div>
+                    </td>
+                </tr>
+            @endforelse
+            </tbody>
+        </table>
+    </div>
+
+    {{ $orders->links() }}
+</div>
+
+@endsection
+
+@push('scripts')
+<script src="{{ asset('js/listing-filters.js') }}" defer></script>
+@endpush

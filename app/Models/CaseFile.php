@@ -15,7 +15,7 @@ class CaseFile extends Model
     protected $table = 'cases';
 
     protected $fillable = [
-        'reference', 'order_id', 'company_id', 'workflow_stage_id',
+        'reference', 'order_id', 'company_id', 'case_link_group_id', 'workflow_stage_id',
         'assigned_to', 'assigned_by', 'assigned_at', 'status',
     ];
 
@@ -32,6 +32,23 @@ class CaseFile extends Model
     public function company(): BelongsTo
     {
         return $this->belongsTo(Company::class);
+    }
+
+    public function linkGroup(): BelongsTo
+    {
+        return $this->belongsTo(CaseLinkGroup::class, 'case_link_group_id');
+    }
+
+    public function hasRelatedCases(): bool
+    {
+        if (! $this->case_link_group_id) {
+            return false;
+        }
+
+        return CaseFile::query()
+            ->where('case_link_group_id', $this->case_link_group_id)
+            ->where('id', '!=', $this->id)
+            ->exists();
     }
 
     public function stage(): BelongsTo
@@ -103,10 +120,42 @@ class CaseFile extends Model
             : $this->analysts()->get();
 
         if ($team->isEmpty() && $this->assignee) {
-            return $this->assignee->name;
+            return $this->assignee->displayNameWithRole();
         }
 
-        return $team->pluck('name')->join(', ');
+        return $team
+            ->sortBy(fn (User $user) => $user->role->value)
+            ->map(fn (User $user) => $user->displayNameWithRole())
+            ->join(', ');
+    }
+
+    /**
+     * @return array<string, \Illuminate\Support\Collection<int, User>>
+     */
+    public function teamByEmployeeType(): array
+    {
+        $team = $this->relationLoaded('analysts')
+            ? $this->analysts
+            : $this->analysts()->get();
+
+        $byType = [];
+        foreach (\App\Enums\EmployeeType::cases() as $type) {
+            $byType[$type->value] = $team->where('role', \App\Enums\UserRole::from($type->value))->values();
+        }
+
+        return $byType;
+    }
+
+    public function hasFullEmployeeTeam(): bool
+    {
+        foreach (\App\Enums\EmployeeType::cases() as $type) {
+            $byType = $this->teamByEmployeeType();
+            if (($byType[$type->value] ?? collect())->isEmpty()) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     public function assigner(): BelongsTo
@@ -201,7 +250,7 @@ class CaseFile extends Model
             return (int) $this->company_id === (int) $viewer->company_id;
         }
 
-        if ($viewer->hasRole(UserRole::Analyst)) {
+        if ($viewer->role->isEmployeeRole()) {
             return $this->hasAnalyst($viewer);
         }
 
@@ -211,7 +260,7 @@ class CaseFile extends Model
     /** Client contact for analyst/admin, or assigned analyst for client. */
     public function chatPartnerFor(User $viewer): ?User
     {
-        if ($viewer->hasRole(UserRole::Analyst) || $viewer->hasRole(UserRole::Admin) || $viewer->hasRole(UserRole::SuperAdmin)) {
+        if ($viewer->role->isEmployeeRole() || $viewer->hasRole(UserRole::Admin) || $viewer->hasRole(UserRole::SuperAdmin)) {
             return $this->resolvedClient();
         }
 

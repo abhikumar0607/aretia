@@ -7,19 +7,28 @@ use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\Company;
 use App\Models\User;
+use App\Rules\StrictEmail;
 use App\Services\AuditService;
+use App\Services\UserAccessService;
+use App\Notifications\EmployeeAccountCreatedNotification;
+use App\Support\CompanyFilter;
+use App\Support\PasswordRules;
 use App\Support\Toast;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class TeamController extends Controller
 {
-    public function __construct(private AuditService $audit) {}
+    public function __construct(
+        private AuditService $audit,
+        private UserAccessService $access,
+    ) {}
 
-    public function clients(): View
+    public function clients(Request $request): View
     {
         $stats = [
             'client_companies' => Company::count(),
@@ -27,46 +36,242 @@ class TeamController extends Controller
             'client_users' => User::where('role', UserRole::Client)->count(),
         ];
 
-        $companies = Company::with(['users' => fn ($q) => $q->where('role', UserRole::Client)->orderByDesc('is_primary')])
-            ->latest()
-            ->paginate(config('portal.per_page'));
+        $search = trim((string) $request->input('q'));
+        $companyFilter = $request->input('company');
 
-        return view('admin.clients.index', compact('stats', 'companies'));
+        $clientUsers = User::query()
+            ->where('role', UserRole::Client)
+            ->with('company')
+            ->when($search !== '', function ($query) use ($search) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%")
+                        ->orWhere('phone', 'like', "%{$search}%")
+                        ->orWhereHas('company', function ($company) use ($search) {
+                            $company->where('name', 'like', "%{$search}%")
+                                ->orWhere('email', 'like', "%{$search}%")
+                                ->orWhere('phone', 'like', "%{$search}%");
+                        });
+                });
+            });
+
+        CompanyFilter::apply($clientUsers, $request);
+
+        $clientUsers = $clientUsers
+            ->orderByDesc('is_primary')
+            ->orderBy('name')
+            ->paginate(config('portal.per_page'))
+            ->withQueryString();
+
+        $manageableUserIds = $clientUsers->getCollection()
+            ->filter(fn (User $user) => $this->access->canManage($request->user(), $user))
+            ->pluck('id')
+            ->all();
+
+        $hasFilters = $search !== ''
+            || (is_string($companyFilter) && $companyFilter !== '');
+
+        return view('admin.clients.index', [
+            'stats' => $stats,
+            'clientUsers' => $clientUsers,
+            'companyOptions' => CompanyFilter::options(),
+            'manageableUserIds' => $manageableUserIds,
+            'hasFilters' => $hasFilters,
+        ]);
     }
 
-    public function analysts(): View
+    public function showClient(Request $request, Company $company): View
+    {
+        $company->load(['users' => fn ($q) => $q->where('role', UserRole::Client)->orderByDesc('is_primary')]);
+
+        $manageableUserIds = $company->users
+            ->filter(fn (User $user) => $this->access->canManage($request->user(), $user))
+            ->pluck('id')
+            ->all();
+
+        return view('admin.clients.show', compact('company', 'manageableUserIds'));
+    }
+
+    public function employees(Request $request): View
     {
         $stats = [
-            'analysts' => User::where('role', UserRole::Analyst)->count(),
+            'employees' => User::employees()->count(),
         ];
 
-        $analysts = User::where('role', UserRole::Analyst)
+        $search = trim((string) $request->input('q'));
+        $roleFilter = $request->input('role');
+
+        $employees = User::query()
+            ->employees()
+            ->when($search !== '', function ($query) use ($search) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%")
+                        ->orWhere('phone', 'like', "%{$search}%");
+                });
+            })
+            ->when(
+                is_string($roleFilter) && $roleFilter !== '' && UserRole::tryFrom($roleFilter)?->isEmployeeRole(),
+                fn ($query) => $query->where('role', $roleFilter),
+            )
             ->withCount('assignedCases')
             ->orderBy('name')
-            ->get();
+            ->paginate(config('portal.per_page'))
+            ->withQueryString();
 
-        return view('admin.analysts.index', compact('stats', 'analysts'));
+        $manageableUserIds = $employees->getCollection()
+            ->filter(fn (User $user) => $this->access->canManage($request->user(), $user))
+            ->pluck('id')
+            ->all();
+
+        $hasFilters = $search !== ''
+            || (is_string($roleFilter) && $roleFilter !== '' && UserRole::tryFrom($roleFilter)?->isEmployeeRole());
+
+        return view('admin.employees.index', [
+            'stats' => $stats,
+            'employees' => $employees,
+            'manageableUserIds' => $manageableUserIds,
+            'roleOptions' => UserRole::employeeRoleOptions(),
+            'hasFilters' => $hasFilters,
+        ]);
     }
 
-    public function storeAnalyst(Request $request): JsonResponse|RedirectResponse
+    public function createEmployee(): View
+    {
+        return view('admin.employees.create');
+    }
+
+    public function editEmployee(Request $request, User $user): View
+    {
+        if (! $user->isEmployee()) {
+            abort(404);
+        }
+
+        if (! $this->access->canManage($request->user(), $user)) {
+            abort(403, 'You do not have permission to manage this account.');
+        }
+
+        return view('admin.employees.edit', ['employee' => $user]);
+    }
+
+    public function storeEmployee(Request $request): JsonResponse|RedirectResponse
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'email' => ['required', 'string', 'max:255', new StrictEmail, 'unique:users,email'],
             'phone' => ['nullable', 'string', 'max:50'],
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
+            'role' => ['required', Rule::enum(UserRole::class)],
+            'password' => ['required', 'confirmed', PasswordRules::defaults()],
         ]);
 
-        $analyst = User::create([
+        $role = UserRole::from($data['role']);
+        if (! $role->isEmployeeRole()) {
+            return Toast::back('Role must be Analyst, QA, or FQA.');
+        }
+
+        $plainPassword = $data['password'];
+
+        $employee = User::create([
             'name' => $data['name'],
             'email' => $data['email'],
             'phone' => $data['phone'] ?? null,
-            'password' => Hash::make($data['password']),
-            'role' => UserRole::Analyst,
+            'password' => Hash::make($plainPassword),
+            'role' => $role,
+            'is_active' => true,
         ]);
 
-        $this->audit->log('analyst.created', $analyst, ['email' => $analyst->email]);
+        $employee->notify(new EmployeeAccountCreatedNotification($plainPassword));
 
-        return Toast::to(route('admin.analysts.index'), 'Analyst account created successfully.');
+        $this->audit->log('employee.created', $employee, [
+            'email' => $employee->email,
+            'role' => $employee->role->value,
+        ]);
+
+        return Toast::to(route('admin.employees.index'), 'Employee created. Login details sent to their email.');
+    }
+
+    public function updateEmployee(Request $request, User $user): JsonResponse|RedirectResponse
+    {
+        if (! $user->isEmployee()) {
+            abort(404);
+        }
+
+        if (! $this->access->canManage($request->user(), $user)) {
+            abort(403, 'You do not have permission to manage this account.');
+        }
+
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'string', 'max:255', new StrictEmail, Rule::unique('users', 'email')->ignore($user->id)],
+            'phone' => ['nullable', 'string', 'max:50'],
+            'role' => ['required', Rule::enum(UserRole::class)],
+        ]);
+
+        $role = UserRole::from($data['role']);
+        if (! $role->isEmployeeRole()) {
+            return Toast::back('Role must be Analyst, QA, or FQA.');
+        }
+
+        $previousRole = $user->role->value;
+
+        $user->update([
+            'name' => $data['name'],
+            'email' => $data['email'],
+            'phone' => $data['phone'] ?? null,
+            'role' => $role,
+        ]);
+
+        $this->audit->log('employee.updated', $user, [
+            'email' => $user->email,
+            'role' => $user->role->value,
+            'previous_role' => $previousRole,
+        ]);
+
+        return Toast::to(route('admin.employees.index'), 'Employee updated successfully.');
+    }
+
+    public function deactivateUser(Request $request, User $user): JsonResponse|RedirectResponse
+    {
+        $this->access->deactivateUser($request->user(), $user);
+
+        return Toast::back('Account deactivated. They can no longer sign in.');
+    }
+
+    public function activateUser(Request $request, User $user): JsonResponse|RedirectResponse
+    {
+        $this->access->activateUser($request->user(), $user);
+
+        return Toast::back('Account restored. They can sign in again.');
+    }
+
+    public function destroyUser(Request $request, User $user): JsonResponse|RedirectResponse
+    {
+        $redirect = $user->hasRole(UserRole::Client) && $user->company_id
+            ? route('admin.clients.show', $user->company_id)
+            : route('admin.employees.index');
+
+        $this->access->deleteUser($request->user(), $user);
+
+        return Toast::to($redirect, 'Account deleted permanently.');
+    }
+
+    public function deactivateCompany(Request $request, Company $company): JsonResponse|RedirectResponse
+    {
+        $this->access->deactivateCompany($request->user(), $company);
+
+        return Toast::to(
+            route('admin.clients.show', $company),
+            'Company suspended. All users under this company have been signed out.'
+        );
+    }
+
+    public function activateCompany(Request $request, Company $company): JsonResponse|RedirectResponse
+    {
+        $this->access->activateCompany($request->user(), $company);
+
+        return Toast::to(
+            route('admin.clients.show', $company),
+            'Company access restored. Users can sign in again.'
+        );
     }
 }

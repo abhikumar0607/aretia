@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\OnboardingStatus;
 use App\Enums\UserRole;
+use Illuminate\Database\Eloquent\Builder;
 use App\Notifications\ResetPasswordNotification;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -14,7 +15,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-#[Fillable(['name', 'email', 'password', 'role', 'company_id', 'phone', 'avatar_path', 'is_primary', 'onboarding_status'])]
+#[Fillable(['name', 'email', 'password', 'role', 'company_id', 'phone', 'avatar_path', 'is_primary', 'onboarding_status', 'is_active'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -29,7 +30,13 @@ class User extends Authenticatable
             'role' => UserRole::class,
             'onboarding_status' => OnboardingStatus::class,
             'is_primary' => 'boolean',
+            'is_active' => 'boolean',
         ];
+    }
+
+    public function isAccountActive(): bool
+    {
+        return $this->is_active;
     }
 
     public function company(): BelongsTo
@@ -47,6 +54,34 @@ class User extends Authenticatable
         $value = $role instanceof UserRole ? $role->value : $role;
 
         return $this->role->value === $value;
+    }
+
+    public function isEmployee(): bool
+    {
+        return $this->role->isEmployeeRole();
+    }
+
+    public function employeeTypeLabel(): string
+    {
+        return $this->role->label();
+    }
+
+    public function displayNameWithRole(): string
+    {
+        if (! $this->isEmployee()) {
+            return $this->name;
+        }
+
+        return $this->name.' ('.$this->role->label().')';
+    }
+
+    /** @param  Builder<static>  $query */
+    public function scopeEmployees(Builder $query): Builder
+    {
+        return $query->whereIn('role', array_map(
+            fn (UserRole $role) => $role->value,
+            UserRole::employeeRoles()
+        ));
     }
 
     public function isClientActive(): bool

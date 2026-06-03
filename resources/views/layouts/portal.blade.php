@@ -9,7 +9,18 @@
 </head>
 <body>
 <div class="app-shell">
-    @include('partials.sidebar')
+    @auth
+        @php $roleValue = auth()->user()->role->value; @endphp
+        @if($roleValue === 'superadmin')
+            @include('partials.sidebar-superadmin')
+        @elseif($roleValue === 'admin')
+            @include('partials.sidebar-admin')
+        @else
+            @include('partials.sidebar')
+        @endif
+    @else
+        @include('partials.sidebar')
+    @endauth
     <div class="main-area">
         @include('partials.portal-header')
         <div class="main-gradient">
@@ -68,7 +79,7 @@
 @php
     $portalRole = auth()->user()->role->value;
 @endphp
-@if(in_array($portalRole, ['client', 'analyst'], true))
+@if(in_array($portalRole, ['client', 'analyst', 'admin', 'superadmin'], true))
 <script src="{{ asset('js/chat-notifications.js') }}" defer></script>
 @endif
 @endif

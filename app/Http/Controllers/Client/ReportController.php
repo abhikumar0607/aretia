@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Client;
 
 use App\Http\Controllers\Controller;
 use App\Models\Report;
+use App\Support\CompanyFilter;
 use App\Services\AuditService;
 use App\Services\PublicUploadService;
 use Illuminate\Http\RedirectResponse;
@@ -20,12 +21,17 @@ class ReportController extends Controller
 
     public function index(Request $request): View
     {
-        $companyId = auth()->user()->company_id;
+        $companyIds = CompanyFilter::scopedCompanyIdsForUser($request->user());
 
-        $query = Report::whereHas('caseFile', fn ($q) => $q->where('company_id', $companyId))
-            ->with(['caseFile.order.package'])
+        $query = Report::whereHas('caseFile', fn ($q) => $q->whereIn('company_id', $companyIds))
+            ->with(['caseFile.company', 'caseFile.order.package'])
             ->whereNotNull('delivered_at')
             ->latest('delivered_at');
+
+        if ($request->filled('company')) {
+            $filterIds = CompanyFilter::equivalentCompanyIds((int) $request->input('company'));
+            $query->whereHas('caseFile', fn ($q) => $q->whereIn('company_id', $filterIds));
+        }
 
         if ($search = trim((string) $request->input('q'))) {
             $query->where(function ($q) use ($search) {
@@ -37,15 +43,17 @@ class ReportController extends Controller
         $reports = $query->paginate(config('portal.per_page'))->withQueryString();
 
         $stats = [
-            'total' => Report::whereHas('caseFile', fn ($q) => $q->where('company_id', $companyId))
+            'total' => Report::whereHas('caseFile', fn ($q) => $q->whereIn('company_id', $companyIds))
                 ->whereNotNull('delivered_at')->count(),
-            'month' => Report::whereHas('caseFile', fn ($q) => $q->where('company_id', $companyId))
+            'month' => Report::whereHas('caseFile', fn ($q) => $q->whereIn('company_id', $companyIds))
                 ->whereNotNull('delivered_at')
                 ->where('delivered_at', '>=', now()->startOfMonth())
                 ->count(),
         ];
 
-        return view('client.reports.index', compact('reports', 'stats'));
+        $companyOptions = CompanyFilter::optionsForUser($request->user());
+
+        return view('client.reports.index', compact('reports', 'stats', 'companyOptions'));
     }
 
     public function show(Report $report): View

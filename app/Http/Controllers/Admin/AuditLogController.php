@@ -4,11 +4,14 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
+use App\Support\AuditLogFilters;
+use App\Support\CompanyFilter;
+use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class AuditLogController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
         $logs = AuditLog::with([
             'user',
@@ -19,10 +22,13 @@ class AuditLogController extends Controller
                 \App\Models\Message::class => ['caseFile'],
             ]),
         ])
+            ->tap(fn ($query) => AuditLogFilters::apply($query, $request))
             ->latest()
             ->paginate(config('portal.per_page'))
             ->withQueryString();
 
-        return view('admin.audit.index', compact('logs'));
+        $companyOptions = CompanyFilter::optionsForUser($request->user());
+
+        return view('admin.audit.index', compact('logs', 'companyOptions'));
     }
 }

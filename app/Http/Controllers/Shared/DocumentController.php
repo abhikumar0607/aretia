@@ -27,39 +27,90 @@ class DocumentController extends Controller
         $this->authorizeCaseAccess($case);
 
         $data = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'data' => ['required', 'string'],
             'category' => ['nullable', 'string', 'max:100'],
+            'name' => ['nullable', 'string', 'max:255'],
+            'data' => ['nullable', 'string'],
+            'documents' => ['nullable', 'array', 'min:1'],
+            'documents.*.name' => ['required_with:documents', 'string', 'max:255'],
+            'documents.*.data' => ['required_with:documents', 'string'],
         ]);
 
-        $binary = $this->uploads->decodeBase64($data['data']);
-        $path = $this->uploads->storeBinary($binary, $data['name'], 'cases', $case->id);
+        $category = $data['category'] ?? 'general';
 
-        Document::create([
-            'documentable_type' => CaseFile::class,
-            'documentable_id' => $case->id,
-            'uploaded_by' => auth()->id(),
-            'type' => 'uploaded',
-            'category' => $data['category'] ?? 'general',
-            'original_name' => $data['name'],
-            'path' => $path,
-        ]);
+        $docs = $data['documents'] ?? null;
+        if (! $docs) {
+            if (empty($data['name']) || empty($data['data'])) {
+                return Toast::back('Please select at least one file.');
+            }
+            $docs = [['name' => $data['name'], 'data' => $data['data']]];
+        }
+
+        foreach ($docs as $doc) {
+            $originalName = $doc['name'];
+            $binary = $this->uploads->decodeBase64($doc['data']);
+
+            $ext = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+            if ($ext === 'zip') {
+                $path = $this->uploads->storeBinary($binary, $originalName, 'cases', $case->id);
+                Document::create([
+                    'documentable_type' => CaseFile::class,
+                    'documentable_id' => $case->id,
+                    'uploaded_by' => auth()->id(),
+                    'type' => 'uploaded',
+                    'category' => $category,
+                    'original_name' => $originalName,
+                    'path' => $path,
+                ]);
+
+                continue;
+            }
+
+            $path = $this->uploads->storeBinary($binary, $originalName, 'cases', $case->id);
+            Document::create([
+                'documentable_type' => CaseFile::class,
+                'documentable_id' => $case->id,
+                'uploaded_by' => auth()->id(),
+                'type' => 'uploaded',
+                'category' => $category,
+                'original_name' => $originalName,
+                'path' => $path,
+            ]);
+        }
 
         $this->audit->log('document.uploaded', $case);
 
-        return Toast::to($this->caseShowUrl($case), 'Document uploaded successfully.');
+        return Toast::to($this->caseShowUrl($case), 'Document(s) uploaded successfully.');
+    }
+
+    public function preview(Document $document): BinaryFileResponse
+    {
+        $this->authorizeDocument($document);
+
+        $full = $this->uploads->absolutePath($document->path);
+        abort_unless(is_file($full), 404);
+
+        return response()->file($full);
     }
 
     public function download(Document $document): BinaryFileResponse
     {
-        $case = $document->documentable;
-        if ($case instanceof CaseFile) {
-            $this->authorizeCaseAccess($case);
-        }
+        $this->authorizeDocument($document);
 
         $this->audit->log('document.downloaded', $document);
 
         return $this->uploads->download($document->path, $document->original_name);
+    }
+
+    private function authorizeDocument(Document $document): void
+    {
+        $case = $document->documentable;
+        if ($case instanceof CaseFile) {
+            $this->authorizeCaseAccess($case);
+
+            return;
+        }
+
+        abort(404);
     }
 
     private function caseShowUrl(CaseFile $case): string
@@ -69,9 +120,13 @@ class DocumentController extends Controller
             $role = $role->value;
         }
 
+        if (UserRole::tryFrom($role)?->isEmployeeRole()) {
+            return \App\Support\PortalRoute::route('cases.show', $case, true, auth()->user());
+        }
+
         $routeName = match ($role) {
             UserRole::Client->value => 'client.cases.show',
-            UserRole::Analyst->value => 'analyst.cases.show',
+            UserRole::SuperAdmin->value => 'superadmin.cases.show',
             default => 'admin.cases.show',
         };
 
@@ -90,7 +145,7 @@ class DocumentController extends Controller
             return;
         }
 
-        if ($user->hasRole(UserRole::Analyst) && $case->hasAnalyst($user)) {
+        if ($user->isEmployee() && $case->hasAnalyst($user)) {
             return;
         }
 

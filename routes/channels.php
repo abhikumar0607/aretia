@@ -23,7 +23,7 @@ Broadcast::channel('case.{caseId}', function (User $user, int $caseId): bool {
         return true;
     }
 
-    if ($user->hasRole(UserRole::Analyst) && $case->hasAnalyst($user)) {
+    if ($user->isEmployee() && $case->hasAnalyst($user)) {
         return true;
     }
 

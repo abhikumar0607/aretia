@@ -3,12 +3,14 @@
 
     $stageColor = $case->stage?->color ?? '#6366f1';
     $viewer = auth()->user();
-    $showClientContact = $viewer && (
+    $clientContact = $viewer && (
         $viewer->hasRole(UserRole::Admin)
         || $viewer->hasRole(UserRole::SuperAdmin)
-        || $viewer->hasRole(UserRole::Analyst)
-    );
-    $clientContact = $showClientContact ? $case->resolvedClient() : null;
+    ) ? $case->resolvedClient() : null;
+
+    $clientNameOnly = $viewer && $viewer->isEmployee()
+        ? $case->resolvedClient()
+        : null;
 @endphp
 
 @if(!empty($backRoute))
@@ -26,6 +28,8 @@
             {{ $case->company->name }}
             @if($clientContact)
                 &middot; Client: <strong>{{ $clientContact->name }}</strong>
+            @elseif($clientNameOnly)
+                &middot; Client: <strong>{{ $clientNameOnly->name }}</strong>
             @endif
             &middot; {{ $case->order->package->name }}
         </p>
@@ -35,14 +39,21 @@
             @endif
             @if($clientContact)
                 <span class="pill pill-client">Client: {{ $clientContact->name }}</span>
+            @elseif($clientNameOnly)
+                <span class="pill pill-client">Client: {{ $clientNameOnly->name }}</span>
             @endif
-            @if($case->assignee)
-                @if($case->relationLoaded('analysts') && $case->analysts->count() > 1)
-                    <span class="pill pill-muted" title="Lead analyst">Team: {{ $case->analystTeamNames() }}</span>
-                    <span class="pill pill-muted">Lead: {{ $case->assignee->name }}</span>
-                @else
-                    <span class="pill pill-muted">Analyst: {{ $case->assignee->name }}</span>
-                @endif
+            @if($case->hasFullEmployeeTeam())
+                @foreach(\App\Enums\EmployeeType::cases() as $type)
+                    @php $members = $case->teamByEmployeeType()[$type->value] ?? collect(); @endphp
+                    @foreach($members as $member)
+                        <span class="pill {{ $member->role->badgeClass() }}">
+                            {{ $type->label() }}: {{ $member->name }}
+                        </span>
+                    @endforeach
+                @endforeach
+            @elseif($case->assignee)
+                <span class="pill pill-muted">Team incomplete</span>
+                <span class="pill pill-muted">Lead: {{ $case->assignee->displayNameWithRole() }}</span>
             @else
                 <span class="pill pill-muted">Unassigned</span>
             @endif
@@ -63,58 +74,48 @@
     @endif
 </header>
 
-<div class="case-meta-grid">
-    @if($clientContact)
-    <div class="detail-meta-card detail-meta-card-client">
-        <div class="detail-meta-icon detail-meta-icon-client">
-            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+<div class="card case-details-box">
+    <div class="case-details-grid">
+        @if($clientContact)
+            <div class="case-detail-item">
+                <span class="case-detail-label">Client contact</span>
+                <span class="case-detail-value">{{ $clientContact->name }}</span>
+                @if($clientContact->email)
+                    <span class="case-detail-sub">{{ $clientContact->email }}</span>
+                @endif
+                @if($clientContact->phone)
+                    <span class="case-detail-sub">{{ $clientContact->phone }}</span>
+                @endif
+            </div>
+        @elseif($clientNameOnly)
+            <div class="case-detail-item">
+                <span class="case-detail-label">Client contact</span>
+                <span class="case-detail-value">{{ $clientNameOnly->name }}</span>
+                <span class="case-detail-sub">Contact details hidden</span>
+            </div>
+        @endif
+        <div class="case-detail-item">
+            <span class="case-detail-label">Company</span>
+            <span class="case-detail-value">{{ $case->company->name }}</span>
         </div>
-        <div>
-            <span class="detail-meta-label">Client contact</span>
-            <span class="detail-meta-value">{{ $clientContact->name }}</span>
-            @if($clientContact->email)
-                <span class="detail-meta-sub">{{ $clientContact->email }}</span>
+        <div class="case-detail-item">
+            <span class="case-detail-label">Order</span>
+            <span class="case-detail-value">{{ $case->order->reference }}</span>
+        </div>
+        <div class="case-detail-item">
+            <span class="case-detail-label">Confirmed</span>
+            <span class="case-detail-value">{{ $case->order->confirmed_at?->format('d M Y') ?? '—' }}</span>
+            @if($case->order->confirmed_at)
+                <span class="case-detail-sub">{{ $case->order->confirmed_at->format('H:i') }}</span>
             @endif
-            @if($clientContact->phone)
-                <span class="detail-meta-sub">{{ $clientContact->phone }}</span>
-            @endif
         </div>
-    </div>
-    @endif
-    <div class="detail-meta-card">
-        <div class="detail-meta-icon">
-            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+        <div class="case-detail-item">
+            <span class="case-detail-label">Due date</span>
+            <span class="case-detail-value">{{ $case->order->due_date?->format('d M Y') ?? 'TBD' }}</span>
         </div>
-        <div>
-            <span class="detail-meta-label">Company</span>
-            <span class="detail-meta-value">{{ $case->company->name }}</span>
-        </div>
-    </div>
-    <div class="detail-meta-card">
-        <div class="detail-meta-icon">
-            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-        </div>
-        <div>
-            <span class="detail-meta-label">Order</span>
-            <span class="detail-meta-value">{{ $case->order->reference }}</span>
-        </div>
-    </div>
-    <div class="detail-meta-card">
-        <div class="detail-meta-icon detail-meta-icon-warn">
-            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-        </div>
-        <div>
-            <span class="detail-meta-label">Due date</span>
-            <span class="detail-meta-value">{{ $case->order->due_date?->format('d M Y') ?? 'TBD' }}</span>
-        </div>
-    </div>
-    <div class="detail-meta-card">
-        <div class="detail-meta-icon detail-meta-icon-success">
-            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
-        </div>
-        <div>
-            <span class="detail-meta-label">Subject</span>
-            <span class="detail-meta-value">{{ $case->order->subject_name ?? 'Custom' }}</span>
+        <div class="case-detail-item">
+            <span class="case-detail-label">Subject</span>
+            <span class="case-detail-value">{{ $case->order->subject_name ?? 'Custom' }}</span>
         </div>
     </div>
 </div>

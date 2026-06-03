@@ -33,27 +33,47 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    const showDropzoneFiles = (input, nameEl, zone) => {
+        const files = input.files;
+        if (!files?.length) {
+            if (nameEl) {
+                nameEl.textContent = '';
+                nameEl.classList.remove('dropzone-file-names--multi');
+            }
+            zone.classList.remove('has-file');
+            return;
+        }
+
+        if (nameEl) {
+            const names = Array.from(files).map((f) => f.name);
+            if (names.length === 1) {
+                nameEl.textContent = names[0];
+                nameEl.classList.remove('dropzone-file-names--multi');
+            } else {
+                nameEl.textContent = names.join('\n');
+                nameEl.classList.add('dropzone-file-names--multi');
+            }
+        }
+        zone.classList.add('has-file');
+    };
+
+    const setDroppedFiles = (input, fileList) => {
+        if (!fileList?.length) return;
+        if (input.multiple) {
+            input.files = fileList;
+            return;
+        }
+        const dt = new DataTransfer();
+        dt.items.add(fileList[0]);
+        input.files = dt.files;
+    };
+
     document.querySelectorAll('[data-dropzone]').forEach((zone) => {
         const input = zone.querySelector('input[type="file"]');
         const nameEl = zone.querySelector('[data-file-name]');
         if (!input) return;
 
-        const assignFile = (file) => {
-            if (!file) return;
-            const dt = new DataTransfer();
-            dt.items.add(file);
-            input.files = dt.files;
-            if (nameEl) {
-                nameEl.textContent = file.name;
-            }
-            zone.classList.add('has-file');
-        };
-
-        input.addEventListener('change', () => {
-            if (input.files?.[0]) {
-                assignFile(input.files[0]);
-            }
-        });
+        input.addEventListener('change', () => showDropzoneFiles(input, nameEl, zone));
 
         zone.addEventListener('dragover', (e) => {
             e.preventDefault();
@@ -65,9 +85,8 @@ document.addEventListener('DOMContentLoaded', () => {
         zone.addEventListener('drop', (e) => {
             e.preventDefault();
             zone.classList.remove('dragover');
-            if (e.dataTransfer.files?.[0]) {
-                assignFile(e.dataTransfer.files[0]);
-            }
+            setDroppedFiles(input, e.dataTransfer.files);
+            showDropzoneFiles(input, nameEl, zone);
         });
     });
 });

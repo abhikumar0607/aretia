@@ -10,6 +10,8 @@ use App\Models\ServicePackage;
 use App\Services\OrderCreationService;
 use App\Services\OrderDueDateService;
 use App\Services\PublicUploadService;
+use App\Support\CompanyFilter;
+use App\Support\OrderListFilters;
 use App\Support\Toast;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -27,10 +29,10 @@ class OrderController extends Controller
 
     public function index(Request $request): View
     {
-        $companyId = auth()->user()->company_id;
+        $companyIds = CompanyFilter::scopedCompanyIdsForUser($request->user());
 
-        $query = Order::where('company_id', $companyId)
-            ->with(['package', 'caseFile'])
+        $query = Order::whereIn('company_id', $companyIds)
+            ->with(['company', 'package', 'caseFile'])
             ->latest();
 
         if ($search = trim((string) $request->input('q'))) {
@@ -40,23 +42,20 @@ class OrderController extends Controller
             });
         }
 
-        if ($status = $request->input('status')) {
-            $query->where('status', $status);
-        }
+        OrderListFilters::apply($query, $request);
 
         $orders = $query->paginate(config('portal.per_page'))->withQueryString();
 
         $stats = [
-            'total' => Order::where('company_id', $companyId)->count(),
-            'pending' => Order::where('company_id', $companyId)->where('status', OrderStatus::Pending)->count(),
-            'confirmed' => Order::where('company_id', $companyId)->where('status', OrderStatus::Confirmed)->count(),
+            'total' => Order::whereIn('company_id', $companyIds)->count(),
+            'pending' => Order::whereIn('company_id', $companyIds)->where('status', OrderStatus::Pending)->count(),
+            'confirmed' => Order::whereIn('company_id', $companyIds)->where('status', OrderStatus::Confirmed)->count(),
         ];
 
-        $statusOptions = collect(OrderStatus::cases())->mapWithKeys(
-            fn (OrderStatus $s) => [$s->value => ucfirst($s->value)]
-        )->all();
+        $statusOptions = OrderListFilters::statusOptions();
+        $companyOptions = CompanyFilter::optionsForUser($request->user());
 
-        return view('client.orders.index', compact('orders', 'stats', 'statusOptions'));
+        return view('client.orders.index', compact('orders', 'stats', 'statusOptions', 'companyOptions'));
     }
 
     public function create(Request $request): View
@@ -79,13 +78,21 @@ class OrderController extends Controller
         ];
 
         if ($package->is_custom) {
-            $rules['custom_request'] = ['required', 'string', 'max:5000'];
+            $rules += [
+                'custom_request' => ['required', 'string', 'max:5000'],
+                'subject_type' => ['required', 'in:individual,entity'],
+                'subject_name' => ['nullable', 'string', 'max:255'],
+                'subject_details' => ['nullable', 'string', 'max:5000'],
+                'documents' => ['nullable', 'array'],
+                'documents.*.name' => ['required_with:documents', 'string', 'max:255'],
+                'documents.*.data' => ['required_with:documents', 'string'],
+            ];
         } else {
             $rules += [
                 'subject_type' => ['required', 'in:individual,entity'],
                 'subject_name' => ['required', 'string', 'max:255'],
                 'subject_details' => ['nullable', 'string', 'max:5000'],
-                'documents' => ['nullable', 'array', 'max:5'],
+                'documents' => ['nullable', 'array'],
                 'documents.*.name' => ['required_with:documents', 'string', 'max:255'],
                 'documents.*.data' => ['required_with:documents', 'string'],
             ];
@@ -109,7 +116,7 @@ class OrderController extends Controller
             }
         }
 
-        return Toast::to(route('client.orders.show', $order), 'Order confirmed successfully.');
+        return Toast::to(route('client.orders.show', $order), 'Order submitted for approval. We will notify you once it is confirmed.');
     }
 
     public function show(Order $order): View
@@ -125,13 +132,33 @@ class OrderController extends Controller
         $this->authorizeOrder($order);
 
         $data = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'data' => ['required', 'string'],
+            'name' => ['nullable', 'string', 'max:255'],
+            'data' => ['nullable', 'string'],
+            'documents' => ['nullable', 'array', 'min:1'],
+            'documents.*.name' => ['required_with:documents', 'string', 'max:255'],
+            'documents.*.data' => ['required_with:documents', 'string'],
         ]);
 
-        $this->addDocument($order, auth()->id(), $data['name'], $data['data']);
+        $docs = $data['documents'] ?? null;
+        if (! $docs) {
+            if (empty($data['name']) || empty($data['data'])) {
+                return Toast::back('Please select at least one file.');
+            }
+            $docs = [['name' => $data['name'], 'data' => $data['data']]];
+        }
 
-        return Toast::back('Document uploaded successfully.');
+        foreach ($docs as $doc) {
+            $name = $doc['name'];
+            $base64 = $doc['data'];
+            $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+            if ($ext === 'zip') {
+                $this->addDocument($order, auth()->id(), $name, $base64);
+                continue;
+            }
+            $this->addDocument($order, auth()->id(), $name, $base64);
+        }
+
+        return Toast::back('Document(s) uploaded successfully.');
     }
 
     public function updateDueDate(Request $request, Order $order): JsonResponse|RedirectResponse
@@ -160,6 +187,17 @@ class OrderController extends Controller
         return Toast::back('Due date saved. Team members have been notified.');
     }
 
+    public function previewDocument(Order $order, OrderDocument $document): BinaryFileResponse
+    {
+        $this->authorizeOrder($order);
+        abort_unless($document->order_id === $order->id, 404);
+
+        $full = $this->uploads->absolutePath($document->path);
+        abort_unless(is_file($full), 404);
+
+        return response()->file($full);
+    }
+
     public function downloadDocument(Order $order, OrderDocument $document): BinaryFileResponse
     {
         $this->authorizeOrder($order);
@@ -170,12 +208,6 @@ class OrderController extends Controller
 
     private function addDocument(Order $order, int $userId, string $name, string $base64): void
     {
-        if ($order->documents()->count() >= 5) {
-            throw \Illuminate\Validation\ValidationException::withMessages([
-                'data' => 'Maximum 5 documents per order.',
-            ]);
-        }
-
         $binary = $this->uploads->decodeBase64($base64);
         $path = $this->uploads->storeBinary($binary, $name, 'orders', $order->id);
 

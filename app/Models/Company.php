@@ -57,4 +57,9 @@ class Company extends Model
     {
         return $this->status === CompanyStatus::Active;
     }
+
+    public function isSuspended(): bool
+    {
+        return $this->status === CompanyStatus::Suspended;
+    }
 }

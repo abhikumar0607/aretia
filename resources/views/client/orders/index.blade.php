@@ -39,11 +39,19 @@
     @include('partials.listing-toolbar', [
         'action' => route('client.orders.index'),
         'placeholder' => 'Search reference or subject…',
-        'filters' => [[
-            'name' => 'status',
-            'label' => 'All statuses',
-            'options' => $statusOptions,
-        ]],
+        'filters' => array_values(array_filter([
+            ! empty($companyOptions) ? [
+                'name' => 'company',
+                'label' => 'All companies',
+                'options' => $companyOptions,
+            ] : null,
+            [
+                'name' => 'status',
+                'label' => 'All statuses',
+                'options' => $statusOptions,
+            ],
+        ])),
+        'showPeriodFilter' => true,
     ])
 
     <div class="data-table-wrap">
@@ -51,6 +59,7 @@
             <thead>
                 <tr>
                     <th>Reference</th>
+                    <th>Company</th>
                     <th>Package</th>
                     <th>Subject</th>
                     <th>Due date</th>
@@ -63,12 +72,15 @@
                 <tr class="data-table-row" onclick="window.location='{{ route('client.orders.show', $order) }}'">
                     <td>
                         <div class="cell-primary">
-                            <span class="cell-ref">{{ $order->reference }}</span>
+                            <a href="{{ route('client.orders.show', $order) }}" class="row-link" onclick="event.stopPropagation()">
+                                <span class="cell-ref">{{ $order->reference }}</span>
+                            </a>
                             @if($order->caseFile)
                                 <span class="cell-sub">Case linked</span>
                             @endif
                         </div>
                     </td>
+                    <td>{{ $order->company?->name ?? '—' }}</td>
                     <td><span class="pill pill-package">{{ $order->package->name }}</span></td>
                     <td>
                         <span class="cell-muted">{{ $order->subject_name ?? ($order->custom_request ? 'Custom request' : '—') }}</span>
@@ -77,7 +89,7 @@
                         <span class="cell-date">{{ $order->due_date?->format('d M Y') ?? 'TBD' }}</span>
                     </td>
                     <td>
-                        <span class="badge badge-{{ $order->status->value }}">{{ $order->status->value }}</span>
+                        <span class="badge {{ $order->status->badgeClass() }}">{{ $order->status->label() }}</span>
                     </td>
                     <td class="cell-action">
                         <a href="{{ route('client.orders.show', $order) }}" class="row-link" onclick="event.stopPropagation()">
@@ -88,7 +100,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="6">
+                    <td colspan="7">
                         <div class="empty-state">
                             <div class="empty-state-icon">
                                 <svg width="32" height="32" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
@@ -110,3 +122,7 @@
     {{ $orders->links() }}
 </div>
 @endsection
+
+@push('scripts')
+<script src="{{ asset('js/listing-filters.js') }}" defer></script>
+@endpush

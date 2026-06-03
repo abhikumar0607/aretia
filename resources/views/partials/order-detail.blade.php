@@ -22,7 +22,7 @@
             {{ $order->package->name }}
         </p>
         <div class="detail-badges">
-            <span class="badge badge-{{ $order->status->value }}">{{ $order->status->value }}</span>
+            <span class="badge {{ $order->status->badgeClass() }}">{{ $order->status->label() }}</span>
             @if($order->subject_type)
                 <span class="pill pill-muted">{{ ucfirst($order->subject_type->value) }}</span>
             @endif
@@ -79,8 +79,16 @@
             <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
         </div>
         <div>
-            <span class="detail-meta-label">Confirmed</span>
-            <span class="detail-meta-value">{{ $order->confirmed_at?->format('d M Y H:i') ?? '—' }}</span>
+            @if($order->status === \App\Enums\OrderStatus::Pending)
+                <span class="detail-meta-label">Submitted</span>
+                <span class="detail-meta-value">{{ $order->created_at->format('d M Y H:i') }}</span>
+            @elseif($order->status === \App\Enums\OrderStatus::Confirmed)
+                <span class="detail-meta-label">Confirmed</span>
+                <span class="detail-meta-value">{{ $order->confirmed_at?->format('d M Y H:i') ?? '—' }}</span>
+            @else
+                <span class="detail-meta-label">Status</span>
+                <span class="detail-meta-value">{{ ucfirst($order->status->value) }}</span>
+            @endif
         </div>
     </div>
 </div>
@@ -123,17 +131,27 @@
         @if($order->caseFile)
             <div class="detail-side-card">
                 <h4>Linked case</h4>
-                <p class="detail-side-ref">{{ $order->caseFile->reference }}</p>
+                @if($caseRoute)
+                    <p class="detail-side-ref">
+                        <a href="{{ $caseRoute }}" class="row-link">{{ $order->caseFile->reference }}</a>
+                    </p>
+                @else
+                    <p class="detail-side-ref">{{ $order->caseFile->reference }}</p>
+                @endif
                 @if($order->caseFile->stage)
                     <span class="stage-pill" style="--stage-color: {{ $order->caseFile->stage->color }}">{{ $order->caseFile->stage->name }}</span>
                 @endif
-                @if($order->caseFile->assignee)
-                    <div class="analyst-cell" style="margin-top:0.75rem;">
-                        <span class="analyst-avatar">{{ strtoupper(substr($order->caseFile->assignee->name, 0, 2)) }}</span>
-                        <span>{{ $order->caseFile->assignee->name }}</span>
-                    </div>
+                @php $order->caseFile->loadMissing('analysts'); @endphp
+                @if($order->caseFile->hasFullEmployeeTeam())
+                    <p class="detail-side-muted" style="margin-top:0.75rem;">{{ $order->caseFile->analystTeamNames() }}</p>
+                    @if($order->caseFile->assignee)
+                        <div class="analyst-cell" style="margin-top:0.5rem;">
+                            <span class="analyst-avatar">{{ strtoupper(substr($order->caseFile->assignee->name, 0, 2)) }}</span>
+                            <span>Lead: {{ $order->caseFile->assignee->name }}</span>
+                        </div>
+                    @endif
                 @else
-                    <p class="detail-side-muted">Analyst not assigned yet</p>
+                    <p class="detail-side-muted" style="margin-top:0.75rem;">Team not assigned yet (Analyst, QA, FQA)</p>
                 @endif
                 @if(!empty($enableCaseChat))
                     <button type="button" class="btn btn-primary btn-sm case-chat-trigger" id="case-chat-toggle-sidebar" style="margin-top:1rem;width:100%;justify-content:center;" onclick="document.getElementById('case-chat-toggle')?.click()">
@@ -148,7 +166,13 @@
         @else
             <div class="detail-side-card detail-side-card-muted">
                 <h4>Case</h4>
-                <p class="detail-side-muted">No case file linked to this order yet.</p>
+                @if($order->status === \App\Enums\OrderStatus::Pending)
+                    <p class="detail-side-muted">Awaiting admin approval. A case will be created once this order is approved.</p>
+                @elseif($order->status === \App\Enums\OrderStatus::Rejected)
+                    <p class="detail-side-muted">This order was not approved. No case was created.</p>
+                @else
+                    <p class="detail-side-muted">No case file linked to this order yet.</p>
+                @endif
             </div>
         @endif
 
@@ -160,11 +184,11 @@
 <section class="detail-section card" style="margin-top:1.25rem;">
     <div class="detail-section-head">
         <h3>Supporting documents</h3>
-        <span class="pill pill-muted">{{ $order->documents->count() }} / 5 files</span>
+        <span class="pill pill-muted">{{ $order->documents->count() }} file(s)</span>
     </div>
 
     @if($order->documents->count())
-        <div class="detail-doc-list" style="margin-bottom:{{ !empty($documentUploadRoute) && $order->documents->count() < 5 ? '1.25rem' : '0' }};">
+        <div class="detail-doc-list" style="margin-bottom:{{ !empty($documentUploadRoute) ? '1.25rem' : '0' }};">
             @foreach($order->documents as $doc)
                 <div class="detail-doc-item">
                     <span class="file-icon file-icon-pdf">
@@ -174,8 +198,15 @@
                         <strong>{{ $doc->original_name }}</strong>
                         <span>{{ $doc->created_at->format('d M Y') }}</span>
                     </div>
-                    @if(!empty($documentDownloadRoute))
-                        <a href="{{ route($documentDownloadRoute, [$order, $doc]) }}" class="btn btn-secondary btn-sm">Download</a>
+                    @if(!empty($documentPreviewRoute) || !empty($documentDownloadRoute))
+                        <div class="doc-item-actions">
+                            @if(!empty($documentPreviewRoute))
+                                <a href="{{ route($documentPreviewRoute, [$order, $doc]) }}" class="btn btn-secondary btn-sm" target="_blank" rel="noopener noreferrer">Preview</a>
+                            @endif
+                            @if(!empty($documentDownloadRoute))
+                                <a href="{{ route($documentDownloadRoute, [$order, $doc]) }}" class="btn btn-secondary btn-sm">Download</a>
+                            @endif
+                        </div>
                     @endif
                 </div>
             @endforeach
@@ -184,12 +215,12 @@
         <p class="form-field-hint" style="margin-bottom:1rem;">No documents yet. Upload supporting files below.</p>
     @endif
 
-    @if(!empty($documentUploadRoute) && $order->documents->count() < 5)
+    @if(!empty($documentUploadRoute))
         <form method="POST" action="{{ $documentUploadRoute }}" data-binary-upload>
             @csrf
-            <p class="form-field-hint" style="margin-bottom:0.65rem;">PDF, Word, or images — max 5 MB per file.</p>
+            <p class="form-field-hint" style="margin-bottom:0.65rem;">PDF, Word, or images — max {{ \App\Services\PublicUploadService::MAX_MB }} MB per file.</p>
             <div class="import-file-zone order-file-zone" data-dropzone style="margin-bottom:0.75rem;">
-                <input type="file" id="order_view_document" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" required>
+                <input type="file" id="order_view_document" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.zip" multiple required>
                 <div class="import-file-zone-inner">
                     <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
                     <span class="import-file-label">Drop file or <strong>browse</strong></span>
@@ -198,8 +229,6 @@
             </div>
             <button type="submit" class="btn btn-primary btn-sm">Upload document</button>
         </form>
-    @elseif(!empty($documentUploadRoute))
-        <p class="form-field-hint" style="margin:0;">Maximum 5 documents reached.</p>
     @endif
 </section>
 @endif

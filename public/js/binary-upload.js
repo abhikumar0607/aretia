@@ -17,8 +17,20 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!input || !nameEl) return;
         const show = () => {
             const files = input.files;
-            if (!files?.length) return;
-            nameEl.textContent = files.length === 1 ? files[0].name : files.length + ' files';
+            if (!files?.length) {
+                nameEl.textContent = '';
+                nameEl.classList.remove('dropzone-file-names--multi');
+                zone.classList.remove('has-file');
+                return;
+            }
+            const names = Array.from(files).map((f) => f.name);
+            if (names.length === 1) {
+                nameEl.textContent = names[0];
+                nameEl.classList.remove('dropzone-file-names--multi');
+            } else {
+                nameEl.textContent = names.join('\n');
+                nameEl.classList.add('dropzone-file-names--multi');
+            }
             zone.classList.add('has-file');
         };
         input.addEventListener('change', show);
@@ -43,8 +55,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const file = input.files?.[0];
-            if (!file) {
+            const files = input.files;
+            if (!files?.length) {
                 window.showToast?.('error', 'Please select a file.', { title: 'Required' });
                 return;
             }
@@ -55,8 +67,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const body = new FormData(form);
-            body.append('name', file.name);
-            body.append('data', await fileToBase64(file));
+            for (let i = 0; i < files.length; i++) {
+                body.append(`documents[${i}][name]`, files[i].name);
+                body.append(`documents[${i}][data]`, await fileToBase64(files[i]));
+            }
 
             const result = await window.submitPostRequest(form.action, body);
 
@@ -149,8 +163,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         reportForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const file = input?.files?.[0];
-            if (!file) {
+            const files = input?.files;
+            if (!files?.length) {
                 window.showToast?.('error', 'Please select a report file.', { title: 'Required' });
                 return;
             }
@@ -161,8 +175,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const body = new FormData(reportForm);
-            body.append('name', file.name);
-            body.append('data', await fileToBase64(file));
+            for (let i = 0; i < files.length; i++) {
+                body.append(`documents[${i}][name]`, files[i].name);
+                body.append(`documents[${i}][data]`, await fileToBase64(files[i]));
+            }
 
             const result = await window.submitPostRequest(reportForm.action, body);
 

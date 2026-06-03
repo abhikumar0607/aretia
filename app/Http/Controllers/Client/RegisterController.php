@@ -9,6 +9,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Company;
 use App\Models\User;
 use App\Services\AuditService;
+use App\Rules\StrictEmail;
+use App\Support\PasswordRules;
 use App\Support\Toast;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\JsonResponse;
@@ -32,9 +34,9 @@ class RegisterController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'company' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'email' => ['required', 'string', 'max:255', new StrictEmail, 'unique:users,email'],
             'phone' => ['required', 'string', 'max:50'],
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
+            'password' => ['required', 'confirmed', PasswordRules::defaults()],
         ]);
 
         $company = Company::create([

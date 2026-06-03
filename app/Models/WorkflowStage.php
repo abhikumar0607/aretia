@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class WorkflowStage extends Model
 {
-    protected $fillable = ['name', 'slug', 'color', 'sort_order', 'is_active'];
+    protected $fillable = ['name', 'slug', 'color', 'sort_order', 'is_active', 'responsible_role'];
 
     protected function casts(): array
     {

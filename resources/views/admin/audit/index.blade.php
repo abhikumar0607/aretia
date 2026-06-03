@@ -11,6 +11,20 @@
 </header>
 
 <div class="listing-panel">
+    @include('partials.listing-toolbar', [
+        'action' => route('admin.audit.index'),
+        'hideSearch' => true,
+        'filters' => [
+            [
+                'name' => 'company',
+                'label' => 'All companies',
+                'options' => $companyOptions,
+            ],
+        ],
+        'showDueDateRange' => false,
+        'preserve' => ['company'],
+    ])
+
     <div class="listing-panel-head">
         <h2>Activity log</h2>
     </div>
@@ -84,8 +98,13 @@
                             <div class="empty-state-icon">
                                 <svg width="32" height="32" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                             </div>
-                            <h3>No activity yet</h3>
-                            <p>Actions across the portal will appear here automatically.</p>
+                            @if(request()->filled('company'))
+                                <h3>No results</h3>
+                                <p>No audit entries for this company. Try another filter or reset.</p>
+                            @else
+                                <h3>No activity yet</h3>
+                                <p>Actions across the portal will appear here automatically.</p>
+                            @endif
                         </div>
                     </td>
                 </tr>

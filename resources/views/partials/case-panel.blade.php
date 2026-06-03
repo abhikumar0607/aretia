@@ -19,7 +19,7 @@
                             <strong>{{ $doc->original_name }}</strong>
                             <span>{{ $doc->category ?? 'general' }} &middot; {{ $doc->created_at->format('d M Y') }}</span>
                         </div>
-                        <a href="{{ route('documents.download', $doc) }}" class="btn btn-secondary btn-sm">Download</a>
+                        @include('partials.document-actions', ['doc' => $doc])
                     </div>
                 @endforeach
             </div>
@@ -30,12 +30,12 @@
         @if($showUpload ?? true)
             <form method="POST" action="{{ route('cases.documents.store', $case) }}" data-binary-upload class="case-inline-form case-upload-form">
                 @csrf
-                <p class="form-field-hint">Max 5 MB — PDF, Word, or images</p>
+                <p class="form-field-hint">Max {{ \App\Services\PublicUploadService::MAX_MB }} MB — PDF, Word, images, or ZIP</p>
                 <div class="import-file-zone order-file-zone" data-dropzone>
-                    <input type="file" id="case_document_file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
+                    <input type="file" id="case_document_file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.zip" multiple>
                     <div class="import-file-zone-inner">
                         <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
-                        <span class="import-file-label">Drop file or <strong>browse</strong></span>
+                        <span class="import-file-label">Drop file(s) or <strong>browse</strong></span>
                         <span class="import-file-name" data-file-name></span>
                     </div>
                 </div>

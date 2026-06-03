@@ -61,6 +61,18 @@ class UserSeeder extends Seeder
                 'phone' => null,
             ],
             [
+                'name' => 'QA User',
+                'email' => 'qa@aretia.test',
+                'role' => UserRole::Qa,
+                'phone' => null,
+            ],
+            [
+                'name' => 'FQA User',
+                'email' => 'fqa@aretia.test',
+                'role' => UserRole::Fqa,
+                'phone' => null,
+            ],
+            [
                 'name' => 'Test Superadmin',
                 'email' => 'test.superadmin@aretia.com',
                 'role' => UserRole::SuperAdmin,
@@ -86,6 +98,18 @@ class UserSeeder extends Seeder
                 'email' => 'test.analyst@aretia.com',
                 'role' => UserRole::Analyst,
                 'phone' => '+92 300 0000004',
+            ],
+            [
+                'name' => 'Test QA',
+                'email' => 'test.qa@aretia.com',
+                'role' => UserRole::Qa,
+                'phone' => '+92 300 0000006',
+            ],
+            [
+                'name' => 'Test FQA',
+                'email' => 'test.fqa@aretia.com',
+                'role' => UserRole::Fqa,
+                'phone' => '+92 300 0000007',
             ],
             [
                 'name' => 'Pending Client',

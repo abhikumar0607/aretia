@@ -60,8 +60,8 @@ class CaseMessageNotification extends Notification implements ShouldBroadcastNow
             return route('client.cases.show', $this->case).'?chat=1';
         }
 
-        if ($notifiable->hasRole(UserRole::Analyst)) {
-            return route('analyst.cases.show', $this->case).'?chat=1';
+        if ($notifiable->isEmployee()) {
+            return \App\Support\PortalRoute::caseShowRoute($notifiable, $this->case, true);
         }
 
         return route('admin.cases.show', $this->case);
