@@ -6,7 +6,6 @@
 <header class="listing-hero">
     <div class="listing-hero-text">
         <h1>My cases</h1>
-        <p>All cases for your company{{ auth()->user()->company ? ' ('.auth()->user()->company->name.')' : '' }} — not limited to who placed the order.</p>
     </div>
 </header>
 
