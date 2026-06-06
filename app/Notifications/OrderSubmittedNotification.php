@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\Order;
+use App\Support\PortalRoute;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Notifications\Messages\BroadcastMessage;
@@ -46,7 +47,7 @@ class OrderSubmittedNotification extends Notification implements ShouldBroadcast
                 'greeting' => 'Hello '.$notifiable->name.',',
                 'intro' => 'A client has placed a new order. Review the details and approve it to create the case file.',
                 'highlights' => $highlights,
-                'cta_url' => route('admin.orders.show', $this->order),
+                'cta_url' => PortalRoute::route('orders.show', $this->order, true, $notifiable),
                 'cta_label' => 'Review order',
                 'outro' => 'The case will only be created after you approve this order from the portal.',
             ]);
@@ -59,8 +60,9 @@ class OrderSubmittedNotification extends Notification implements ShouldBroadcast
         return [
             'title' => 'New order awaiting approval',
             'message' => $this->order->company->name.' submitted '.$this->order->reference.' ('.$this->order->package->name.').',
-            'url' => route('admin.orders.show', $this->order),
+            'url' => PortalRoute::route('orders.show', $this->order, true, $notifiable),
             'type' => 'order_submitted',
+            'order_id' => $this->order->id,
         ];
     }
 
