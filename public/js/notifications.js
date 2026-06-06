@@ -57,20 +57,24 @@
         return div.innerHTML;
     }
 
-    function setItemRead(id) {
+    function updateMarkAllVisibility(count) {
+        if (!markAllBtn) return;
+        markAllBtn.hidden = count <= 0;
+    }
+
+    function removeItem(id) {
         if (!list) return;
         var item = list.querySelector('.notification-item[data-id="' + CSS.escape(id) + '"]');
-        if (!item) return;
-        item.classList.remove('notification-item-unread');
-        var dot = item.querySelector('.notification-unread-dot');
-        if (dot) dot.remove();
-        var btn = item.querySelector('[data-mark-read]');
-        if (btn) btn.remove();
+        if (item) item.remove();
+        if (!list.querySelector('.notification-item')) {
+            list.innerHTML = '<li class="notification-empty">No new notifications</li>';
+            updateMarkAllVisibility(0);
+        }
     }
 
     function renderList(items) {
         if (!items.length) {
-            list.innerHTML = '<li class="notification-empty">No notifications yet</li>';
+            list.innerHTML = '<li class="notification-empty">No new notifications</li>';
             return;
         }
 
@@ -103,7 +107,9 @@
 
     function loadNotifications() {
         return postJson(indexUrl).then(function (data) {
-            updateBadge(data.unread_count);
+            var count = data.unread_count || 0;
+            updateBadge(count);
+            updateMarkAllVisibility(count);
             renderList(data.notifications || []);
         }).catch(function () {
             list.innerHTML = '<li class="notification-empty">Could not load notifications</li>';
@@ -113,7 +119,8 @@
     function markRead(id) {
         return postJson(markReadUrl(id), 'POST').then(function (data) {
             updateBadge(data.unread_count);
-            setItemRead(id);
+            updateMarkAllVisibility(data.unread_count);
+            removeItem(id);
             return data;
         }).catch(function () {
             if (typeof window.showToast === 'function') {
