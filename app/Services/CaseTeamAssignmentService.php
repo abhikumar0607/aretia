@@ -119,6 +119,7 @@ class CaseTeamAssignmentService
 
         foreach ($team as $member) {
             try {
+                $member->refresh();
                 $member->notify(new CaseTeamAssignedNotification(
                     $case,
                     isLead: (int) $member->id === $leadId,
