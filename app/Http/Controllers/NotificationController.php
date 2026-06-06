@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\NotificationUrlResolver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Notifications\DatabaseNotification;
@@ -22,7 +23,7 @@ class NotificationController extends Controller
                 'id' => $n->id,
                 'title' => $n->data['title'] ?? 'Notification',
                 'message' => $n->data['message'] ?? '',
-                'url' => $n->data['url'] ?? null,
+                'url' => NotificationUrlResolver::resolve($user, $n->data),
                 'type' => $n->data['type'] ?? null,
                 'read_at' => $n->read_at?->toIso8601String(),
                 'created_at' => $n->created_at->diffForHumans(),
