@@ -13,12 +13,11 @@ class NotificationController extends Controller
     {
         $user = $request->user();
 
-        $notifications = $user->notifications()
+        $notifications = $user->unreadNotifications()
             ->latest()
-            ->limit(50)
+            ->limit(30)
             ->get()
             ->filter(fn (DatabaseNotification $n) => ($n->data['type'] ?? null) !== 'case_message')
-            ->take(30)
             ->map(fn (DatabaseNotification $n) => [
                 'id' => $n->id,
                 'title' => $n->data['title'] ?? 'Notification',
