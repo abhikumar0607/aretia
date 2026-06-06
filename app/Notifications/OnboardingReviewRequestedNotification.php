@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\Company;
+use App\Support\PortalRoute;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Notifications\Messages\BroadcastMessage;
@@ -22,7 +23,7 @@ class OnboardingReviewRequestedNotification extends Notification implements Shou
 
     public function toMail(object $notifiable): MailMessage
     {
-        $url = route('admin.onboarding.show', $this->company);
+        $url = PortalRoute::route('onboarding.show', $this->company, true, $notifiable);
 
         return (new MailMessage)
             ->subject('Aretia — New client onboarding review required')
@@ -49,8 +50,9 @@ class OnboardingReviewRequestedNotification extends Notification implements Shou
         return [
             'title' => 'New onboarding review required',
             'message' => $this->company->name.' submitted KYC documents and is awaiting approval.',
-            'url' => route('admin.onboarding.show', $this->company),
+            'url' => PortalRoute::route('onboarding.show', $this->company, true, $notifiable),
             'type' => 'onboarding_review_requested',
+            'company_id' => $this->company->id,
         ];
     }
 

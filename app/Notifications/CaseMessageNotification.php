@@ -5,6 +5,8 @@ namespace App\Notifications;
 use App\Enums\UserRole;
 use App\Models\CaseFile;
 use App\Models\Message;
+use App\Models\User;
+use App\Support\PortalRoute;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Notifications\Messages\BroadcastMessage;
@@ -61,7 +63,12 @@ class CaseMessageNotification extends Notification implements ShouldBroadcastNow
         }
 
         if ($notifiable->isEmployee()) {
-            return \App\Support\PortalRoute::caseShowRoute($notifiable, $this->case, true);
+            return PortalRoute::caseShowRoute($notifiable, $this->case, true);
+        }
+
+        if ($notifiable instanceof User
+            && ($notifiable->hasRole(UserRole::Admin) || $notifiable->hasRole(UserRole::SuperAdmin))) {
+            return PortalRoute::caseShowRoute($notifiable, $this->case, true);
         }
 
         return route('admin.cases.show', $this->case);
