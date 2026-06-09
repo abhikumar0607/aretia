@@ -13,7 +13,7 @@
 <div class="listing-panel">
     @include('partials.listing-toolbar', [
         'action' => route('superadmin.audit.index'),
-        'hideSearch' => true,
+        'placeholder' => 'Search by case reference or ID…',
         'filters' => [
             [
                 'name' => 'company',
@@ -22,7 +22,7 @@
             ],
         ],
         'showDueDateRange' => false,
-        'preserve' => ['company'],
+        'preserve' => ['company', 'q'],
     ])
 
     <div class="listing-panel-head">
@@ -98,9 +98,9 @@
                             <div class="empty-state-icon">
                                 <svg width="32" height="32" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                             </div>
-                            @if(request()->filled('company'))
+                            @if(\App\Support\AuditLogFilters::hasActiveFilters(request()))
                                 <h3>No results</h3>
-                                <p>No audit entries for this company. Try another filter or reset.</p>
+                                <p>No audit entries match your search. Try another case reference or reset filters.</p>
                             @else
                                 <h3>No activity yet</h3>
                                 <p>Actions across the portal will appear here automatically.</p>
