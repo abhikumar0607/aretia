@@ -45,11 +45,11 @@
                             </span>
                         </td>
                         <td>
-                            <span class="cell-date">{{ $related->order->due_date?->format('d M Y') ?? 'TBD' }}</span>
+                            <span class="cell-date">{{ $related->portalDueDateLabel() }}</span>
                         </td>
                         <td>
                             @if($related->stage)
-                                <span class="stage-pill" style="--stage-color: {{ $related->stage->color }}">{{ $related->stage->name }}</span>
+                                <span class="stage-pill" style="--stage-color: {{ $related->visibleStageColor() }}">{{ $related->visibleStageLabel() }}</span>
                             @else
                                 <span class="cell-muted">—</span>
                             @endif

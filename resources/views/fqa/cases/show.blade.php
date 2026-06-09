@@ -3,15 +3,10 @@
 @section('container_class', 'page-container-wide')
 
 @section('content')
-@php
-    $chatPartner = $case->chatPartnerFor(auth()->user());
-@endphp
 @include('partials.case-hero', [
     'case' => $case,
     'backRoute' => \App\Support\PortalRoute::route('cases.index'),
     'backLabel' => 'My cases',
-    'enableChat' => true,
-    'chatLabel' => $chatPartner ? 'Chat with '.$chatPartner->name : 'Chat with client',
 ])
 
 <div class="case-actions-grid">
@@ -47,28 +42,18 @@
         </form>
     </section>
 
+    @perm('reports.manage')
     @include('partials.case-report-upload', [
         'case' => $case,
         'storeRoute' => \App\Support\PortalRoute::route('reports.store', $case),
     ])
+    @endperm
 </div>
 
+@include('partials.case-delivered-reports', ['case' => $case])
+
+@include('partials.case-internal-comments', ['case' => $case])
 @include('partials.case-panel', ['case' => $case])
-@include('partials.case-chat', ['case' => $case])
 @endsection
 
-@push('scripts')
-<script src="{{ asset('js/case-chat.js') }}" defer></script>
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-    const toggle = document.getElementById('report_password_toggle');
-    const wrap = document.getElementById('report_password_wrap');
-    if (toggle && wrap) {
-        toggle.addEventListener('change', () => {
-            wrap.hidden = !toggle.checked;
-        });
-    }
-});
-</script>
-@endpush
 

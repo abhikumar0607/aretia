@@ -76,10 +76,7 @@
     window.createAretiaEcho = window.getAretiaEcho;
 </script>
 <script src="{{ asset('js/notifications.js') }}" defer></script>
-@php
-    $portalRole = auth()->user()->role->value;
-@endphp
-@if(in_array($portalRole, ['client', 'analyst', 'admin', 'superadmin'], true))
+@if(auth()->user()->hasAnyChatPermission())
 <script src="{{ asset('js/chat-notifications.js') }}" defer></script>
 @endif
 @endif

@@ -3,8 +3,10 @@
 namespace App\Providers;
 
 use App\Models\CaseFile;
+use App\Services\PermissionService;
 use App\Services\PublicUploadService;
 use Illuminate\Pagination\Paginator;
+use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
@@ -28,6 +30,12 @@ class AppServiceProvider extends ServiceProvider
         app(PublicUploadService::class)->ensureRootDirs();
 
         Route::bind('case', fn (string $value) => CaseFile::findOrFail($value));
+
+        Blade::if('perm', function (string $permission): bool {
+            $user = auth()->user();
+
+            return $user && app(PermissionService::class)->allows($user, $permission);
+        });
     }
 
     /** Avoid PHP 8.4 tempnam() using system /tmp when storage paths are missing on deploy. */

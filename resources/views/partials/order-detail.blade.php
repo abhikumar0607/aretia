@@ -15,6 +15,7 @@
     <div class="detail-hero-main">
         <span class="detail-eyebrow">Order</span>
         <h1>{{ $order->reference }}</h1>
+        <p class="case-hero-subject">{{ $order->subject_name ?? 'Custom' }}</p>
         <p class="detail-subtitle">
             @if(isset($showCompany) && $showCompany)
                 {{ $order->company->name }} &middot;
@@ -43,6 +44,13 @@
         @endif
     </div>
 </header>
+
+@if($order->status === \App\Enums\OrderStatus::Rejected && ($rejectionReason = $order->displayRejectionReason()))
+    <div class="order-rejection-notice alert alert-danger">
+        <strong>Rejection reason</strong>
+        <p>{!! nl2br(e($rejectionReason)) !!}</p>
+    </div>
+@endif
 
 <div class="detail-meta-grid">
     @if(isset($showCompany) && $showCompany)
@@ -139,7 +147,7 @@
                     <p class="detail-side-ref">{{ $order->caseFile->reference }}</p>
                 @endif
                 @if($order->caseFile->stage)
-                    <span class="stage-pill" style="--stage-color: {{ $order->caseFile->stage->color }}">{{ $order->caseFile->stage->name }}</span>
+                    <span class="stage-pill" style="--stage-color: {{ $order->caseFile->visibleStageColor() }}">{{ $order->caseFile->visibleStageLabel() }}</span>
                 @endif
                 @php $order->caseFile->loadMissing('analysts'); @endphp
                 @if($order->caseFile->hasFullEmployeeTeam())
@@ -180,37 +188,27 @@
     </aside>
 </div>
 
-@if(!empty($documentUploadRoute) || $order->documents->count())
+@php
+    $visibleOrderDocuments = $order->documentsForViewer();
+    $orderDocumentTotal = $visibleOrderDocuments->count();
+    $paginatedOrderDocuments = \App\Support\CollectionPaginator::paginate($visibleOrderDocuments, pageName: 'docs_page');
+@endphp
+@if(!empty($documentUploadRoute) || $orderDocumentTotal)
 <section class="detail-section card" style="margin-top:1.25rem;">
     <div class="detail-section-head">
         <h3>Supporting documents</h3>
-        <span class="pill pill-muted">{{ $order->documents->count() }} file(s)</span>
+        <span class="pill pill-muted">{{ $orderDocumentTotal }} file(s)</span>
     </div>
 
-    @if($order->documents->count())
-        <div class="detail-doc-list" style="margin-bottom:{{ !empty($documentUploadRoute) ? '1.25rem' : '0' }};">
-            @foreach($order->documents as $doc)
-                <div class="detail-doc-item">
-                    <span class="file-icon file-icon-pdf">
-                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                    </span>
-                    <div class="detail-doc-body">
-                        <strong>{{ $doc->original_name }}</strong>
-                        <span>{{ $doc->created_at->format('d M Y') }}</span>
-                    </div>
-                    @if(!empty($documentPreviewRoute) || !empty($documentDownloadRoute))
-                        <div class="doc-item-actions">
-                            @if(!empty($documentPreviewRoute))
-                                <a href="{{ route($documentPreviewRoute, [$order, $doc]) }}" class="btn btn-secondary btn-sm" target="_blank" rel="noopener noreferrer">Preview</a>
-                            @endif
-                            @if(!empty($documentDownloadRoute))
-                                <a href="{{ route($documentDownloadRoute, [$order, $doc]) }}" class="btn btn-secondary btn-sm">Download</a>
-                            @endif
-                        </div>
-                    @endif
-                </div>
-            @endforeach
-        </div>
+    @if($orderDocumentTotal)
+        @include('partials.document-table', [
+            'documents' => $paginatedOrderDocuments,
+            'showCategory' => false,
+            'order' => $order,
+            'documentPreviewRoute' => $documentPreviewRoute ?? null,
+            'documentDownloadRoute' => $documentDownloadRoute ?? null,
+            'marginBottom' => !empty($documentUploadRoute) ? '1.25rem' : '0',
+        ])
     @else
         <p class="form-field-hint" style="margin-bottom:1rem;">No documents yet. Upload supporting files below.</p>
     @endif

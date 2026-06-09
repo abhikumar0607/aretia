@@ -4,21 +4,22 @@
 
 @section('content')
 @php
-    $canChat = $case->isChatAvailableFor(auth()->user());
-    $chatPartner = $canChat ? $case->chatPartnerFor(auth()->user()) : null;
+    $canChat = auth()->user()->hasPermission('chat.client') && $case->canUseCaseChat(auth()->user());
 @endphp
 @include('partials.case-hero', [
     'case' => $case,
     'backRoute' => route('client.cases.index'),
     'backLabel' => 'My cases',
     'enableChat' => $canChat,
-    'chatLabel' => $chatPartner ? 'Chat with '.$chatPartner->name : null,
+    'chatLabel' => $canChat ? 'Case chat' : null,
     'heroAction' => $case->order ? '<a href="'.route('client.orders.show', $case->order).'" class="btn btn-secondary btn-sm">View order</a>' : null,
 ])
 
 @include('partials.case-related-cases', [
     'relatedCases' => $relatedCases ?? collect(),
 ])
+
+@include('partials.case-delivered-reports', ['case' => $case])
 
 @include('partials.case-panel', ['case' => $case, 'showUpload' => true])
 @if($canChat)

@@ -4,6 +4,7 @@
             @include('partials.dashboard-filter-toolbar', [
                 'dashboardFilters' => $dashboardFilters,
                 'filterAction' => $filterAction ?? url()->current(),
+                'showScopeFilters' => $showScopeFilters ?? false,
             ])
         @endif
 

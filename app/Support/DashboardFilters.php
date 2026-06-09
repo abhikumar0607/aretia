@@ -2,6 +2,8 @@
 
 namespace App\Support;
 
+use App\Models\Company;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\Relation;
@@ -19,6 +21,8 @@ class DashboardFilters
         public string $period = self::PERIOD_ALL,
         public ?string $dateFrom = null,
         public ?string $dateTo = null,
+        public ?int $teamUserId = null,
+        public ?int $companyId = null,
     ) {}
 
     public static function fromRequest(Request $request, ?string $namespace = null): self
@@ -28,7 +32,9 @@ class DashboardFilters
 
         $hasFilterInput = $request->has('period')
             || $request->has('date_from')
-            || $request->has('date_to');
+            || $request->has('date_to')
+            || $request->has('team_user')
+            || $request->has('company_id');
 
         if (! $hasFilterInput && $request->session()->has($sessionKey)) {
             return self::fromSessionArray((array) $request->session()->get($sessionKey, []));
@@ -40,6 +46,8 @@ class DashboardFilters
             'period' => $filters->period,
             'date_from' => $filters->dateFrom,
             'date_to' => $filters->dateTo,
+            'team_user' => $filters->teamUserId,
+            'company_id' => $filters->companyId,
         ]);
 
         return $filters;
@@ -58,7 +66,13 @@ class DashboardFilters
                 $dateTo = self::parseDate($request->input('date_to'));
             }
 
-            return new self(period: $period, dateFrom: $dateFrom, dateTo: $dateTo);
+            return new self(
+                period: $period,
+                dateFrom: $dateFrom,
+                dateTo: $dateTo,
+                teamUserId: self::parseTeamUserId($request->input('team_user')),
+                companyId: self::parseCompanyId($request->input('company_id')),
+            );
         }
 
         if ($request->filled('due_from') || $request->filled('due_to')) {
@@ -66,6 +80,8 @@ class DashboardFilters
                 period: self::PERIOD_CUSTOM,
                 dateFrom: self::parseDate($request->input('due_from')),
                 dateTo: self::parseDate($request->input('due_to')),
+                teamUserId: self::parseTeamUserId($request->input('team_user')),
+                companyId: self::parseCompanyId($request->input('company_id')),
             );
         }
 
@@ -74,10 +90,15 @@ class DashboardFilters
                 period: self::PERIOD_CUSTOM,
                 dateFrom: self::parseDate($request->input('date_from')),
                 dateTo: self::parseDate($request->input('date_to')),
+                teamUserId: self::parseTeamUserId($request->input('team_user')),
+                companyId: self::parseCompanyId($request->input('company_id')),
             );
         }
 
-        return new self();
+        return new self(
+            teamUserId: self::parseTeamUserId($request->input('team_user')),
+            companyId: self::parseCompanyId($request->input('company_id')),
+        );
     }
 
     /**
@@ -95,6 +116,8 @@ class DashboardFilters
             period: $period,
             dateFrom: $period === self::PERIOD_CUSTOM ? self::parseDate($saved['date_from'] ?? null) : null,
             dateTo: $period === self::PERIOD_CUSTOM ? self::parseDate($saved['date_to'] ?? null) : null,
+            teamUserId: self::parseTeamUserId($saved['team_user'] ?? null),
+            companyId: self::parseCompanyId($saved['company_id'] ?? null),
         );
     }
 
@@ -125,12 +148,48 @@ class DashboardFilters
             }
         }
 
+        if ($this->teamUserId) {
+            $params['team_user'] = (string) $this->teamUserId;
+        }
+
+        if ($this->companyId) {
+            $params['company_id'] = (string) $this->companyId;
+        }
+
         return $params;
     }
 
     public function isDefault(): bool
     {
-        return $this->period === self::PERIOD_ALL;
+        return $this->period === self::PERIOD_ALL
+            && $this->teamUserId === null
+            && $this->companyId === null;
+    }
+
+    public function hasScopeFilters(): bool
+    {
+        return $this->teamUserId !== null || $this->companyId !== null;
+    }
+
+    /**
+     * Query params for the cases listing page (preserves dashboard filters).
+     *
+     * @return array<string, string>
+     */
+    public function toCasesListingQueryArray(int|string|null $stage = null): array
+    {
+        $params = $this->toQueryArray();
+
+        if ($this->companyId) {
+            unset($params['company_id']);
+            $params['company'] = (string) $this->companyId;
+        }
+
+        if ($stage !== null && $stage !== '') {
+            $params['stage'] = (string) $stage;
+        }
+
+        return $params;
     }
 
     public function isCustomPeriod(): bool
@@ -233,6 +292,94 @@ class DashboardFilters
     public function applyCaseScope(Builder|Relation $query): void
     {
         $this->applyDateScope($query);
+        $this->applyCompanyScope($query);
+        $this->applyTeamUserCaseScope($query);
+    }
+
+    public function applyOrderScope(Builder|Relation $query, string $dateColumn = 'created_at'): void
+    {
+        $this->applyDateScope($query, $dateColumn);
+        $this->applyCompanyScope($query);
+
+        if ($this->teamUserId) {
+            $teamUserId = $this->teamUserId;
+            $query->whereHas('caseFile', fn (Builder $case) => $case->forAnalyst($teamUserId));
+        }
+    }
+
+    public function applyCompanyScope(Builder|Relation $query, string $column = 'company_id'): void
+    {
+        if (! $this->companyId) {
+            return;
+        }
+
+        $ids = CompanyFilter::equivalentCompanyIds($this->companyId);
+
+        if (count($ids) === 1) {
+            $query->where($column, $ids[0]);
+        } else {
+            $query->whereIn($column, $ids);
+        }
+    }
+
+    public function applyTeamUserCaseScope(Builder|Relation $query): void
+    {
+        if ($this->teamUserId) {
+            $query->forAnalyst($this->teamUserId);
+        }
+    }
+
+    public function teamUserLabel(): ?string
+    {
+        if (! $this->teamUserId) {
+            return null;
+        }
+
+        return User::employees()
+            ->whereKey($this->teamUserId)
+            ->first()
+            ?->displayNameWithRole();
+    }
+
+    public function companyLabel(): ?string
+    {
+        if (! $this->companyId) {
+            return null;
+        }
+
+        return Company::query()->whereKey($this->companyId)->value('name');
+    }
+
+    /**
+     * @return list<array{value: string, label: string}>
+     */
+    public static function teamMemberOptions(): array
+    {
+        return User::employees()
+            ->where('is_active', true)
+            ->orderBy('role')
+            ->orderBy('name')
+            ->get()
+            ->map(fn (User $user) => [
+                'value' => (string) $user->id,
+                'label' => $user->displayNameWithRole(),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return list<array{value: string, label: string}>
+     */
+    public static function companyOptions(): array
+    {
+        return collect(CompanyFilter::options())
+            ->map(fn (string $name, int $id) => [
+                'value' => (string) $id,
+                'label' => $name,
+            ])
+            ->values()
+            ->all();
     }
 
     public function applyAssignedCaseScope(Builder|Relation $query): void
@@ -279,5 +426,27 @@ class DashboardFilters
         } catch (\Throwable) {
             return null;
         }
+    }
+
+    private static function parseTeamUserId(mixed $value): ?int
+    {
+        $id = (int) $value;
+
+        if ($id < 1) {
+            return null;
+        }
+
+        return User::employees()->whereKey($id)->exists() ? $id : null;
+    }
+
+    private static function parseCompanyId(mixed $value): ?int
+    {
+        $id = (int) $value;
+
+        if ($id < 1) {
+            return null;
+        }
+
+        return Company::query()->whereKey($id)->exists() ? $id : null;
     }
 }

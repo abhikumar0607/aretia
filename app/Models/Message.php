@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\MessageChannel;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -9,11 +10,14 @@ class Message extends Model
 {
     protected $table = 'messages';
 
-    protected $fillable = ['case_id', 'sender_id', 'recipient_id', 'body', 'read_at'];
+    protected $fillable = ['case_id', 'sender_id', 'recipient_id', 'channel', 'body', 'read_at'];
 
     protected function casts(): array
     {
-        return ['read_at' => 'datetime'];
+        return [
+            'read_at' => 'datetime',
+            'channel' => MessageChannel::class,
+        ];
     }
 
     public function caseFile(): BelongsTo

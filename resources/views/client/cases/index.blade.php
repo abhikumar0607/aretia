@@ -27,9 +27,10 @@
 <div class="listing-panel">
     @include('partials.cases-listing-toolbar', [
         'action' => route('client.cases.index'),
-        'placeholder' => 'Search case or order reference…',
+        'placeholder' => 'Search case, subject or order reference…',
         'stageOptions' => $stageOptions,
         'companyOptions' => $companyOptions ?? [],
+        'packageOptions' => $packageOptions,
     ])
 
     @include('partials.case-link-selection-bar', [
@@ -46,13 +47,13 @@
                             <input type="checkbox" id="case-select-all" class="case-select-all" aria-label="Select all on page">
                         </th>
                     @endif
-                    <th>Case</th>
-                    <th>Company</th>
-                    <th>Package</th>
-                    <th>Subject</th>
-                    <th>Confirmed</th>
-                    <th>Due date</th>
-                    <th>Stage</th>
+                    @include('partials.data-table-sort-th', ['column' => 'reference', 'label' => 'Case'])
+                    @include('partials.data-table-sort-th', ['column' => 'subject', 'label' => 'Subject'])
+                    @include('partials.data-table-sort-th', ['column' => 'company', 'label' => 'Company'])
+                    @include('partials.data-table-sort-th', ['column' => 'package', 'label' => 'Package'])
+                    @include('partials.data-table-sort-th', ['column' => 'confirmed', 'label' => 'Confirmed'])
+                    @include('partials.data-table-sort-th', ['column' => 'due_date', 'label' => 'Due date'])
+                    @include('partials.data-table-sort-th', ['column' => 'stage', 'label' => 'Stage'])
                     <th>Assigned to</th>
                     <th>Chat</th>
                     <th></th>
@@ -61,7 +62,7 @@
             <tbody>
             @forelse($cases as $case)
                 @php
-                    $stageColor = $case->stage?->color ?? '#6366f1';
+                    $stageColor = $case->visibleStageColor();
                     $hasReport = $case->latestReport?->delivered_at;
                 @endphp
                 <tr class="data-table-row" onclick="window.location='{{ route('client.cases.show', $case) }}'">
@@ -81,17 +82,13 @@
                             @endif
                         </div>
                     </td>
+                    <td><span class="cell-subject">{{ $case->order->subject_name ?? 'Custom' }}</span></td>
                     <td>{{ $case->company?->name ?? '—' }}</td>
                     <td><span class="pill pill-package">{{ $case->order->package->name }}</span></td>
-                    <td><span class="cell-muted">{{ $case->order->subject_name ?? 'Custom' }}</span></td>
                     <td><span class="cell-date">{{ $case->order->confirmed_at?->format('d M Y') ?? '—' }}</span></td>
                     <td><span class="cell-date">{{ $case->order->due_date?->format('d M Y') ?? 'TBD' }}</span></td>
                     <td>
-                        @if($case->stage)
-                            <span class="stage-pill" style="--stage-color: {{ $stageColor }}">{{ $case->stage->name }}</span>
-                        @else
-                            <span class="cell-muted">—</span>
-                        @endif
+                        <span class="stage-pill" style="--stage-color: {{ $stageColor }}">{{ $case->visibleStageLabel() }}</span>
                     </td>
                     <td>
                         @if($case->assignee)

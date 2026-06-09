@@ -7,6 +7,7 @@ use App\Enums\UserRole;
 use App\Models\CaseFile;
 use App\Models\User;
 use App\Notifications\CaseTeamAssignedNotification;
+use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
@@ -19,12 +20,22 @@ class CaseTeamAssignmentService
     public function validateTeamPayload(array $team): array
     {
         $rules = ['team' => ['required', 'array']];
+
         foreach (EmployeeType::cases() as $type) {
-            $rules["team.{$type->value}"] = ['required', 'array', 'min:1'];
+            $isRequired = $type === EmployeeType::Analyst;
+            $rules["team.{$type->value}"] = $isRequired
+                ? ['required', 'array', 'min:1']
+                : ['nullable', 'array'];
             $rules["team.{$type->value}.*"] = ['integer', 'exists:users,id'];
         }
 
-        $validator = validator(['team' => $team], $rules);
+        $messages = [
+            'team.required' => 'Analyst is required.',
+            'team.analyst.required' => 'Analyst is required.',
+            'team.analyst.min' => 'Analyst is required.',
+        ];
+
+        $validator = validator(['team' => $team], $rules, $messages);
 
         if ($validator->fails()) {
             throw new ValidationException($validator);
@@ -42,9 +53,15 @@ class CaseTeamAssignmentService
                 ->values();
 
             if ($ids->isEmpty()) {
-                throw ValidationException::withMessages([
-                    "team.{$type->value}" => 'Select at least one '.$type->label().'.',
-                ]);
+                if ($type === EmployeeType::Analyst) {
+                    throw ValidationException::withMessages([
+                        "team.{$type->value}" => 'Analyst is required. Assign an Analyst before QA or FQA.',
+                    ]);
+                }
+
+                $membersByType->put($type->value, []);
+
+                continue;
             }
 
             $validCount = User::employees()
@@ -63,9 +80,9 @@ class CaseTeamAssignmentService
         }
 
         $allIds = $membersByType->flatten()->values();
-        if ($allIds->unique()->count() !== $allIds->count()) {
+        if ($allIds->isNotEmpty() && $allIds->unique()->count() !== $allIds->count()) {
             throw ValidationException::withMessages([
-                'team' => 'Analyst, QA, and FQA members must be different people.',
+                'team' => 'Each team member can only have one role on this case.',
             ]);
         }
 
@@ -77,9 +94,41 @@ class CaseTeamAssignmentService
 
     /**
      * @param  array<string, array<int, int>>  $memberIdsByType
+     * @return array<string, string>
      */
-    public function assign(CaseFile $case, array $memberIdsByType, int $assignedBy): Collection
+    public function validateDueDates(array $memberIdsByType, array $dueDates): array
     {
+        $rules = [];
+
+        foreach (EmployeeType::cases() as $type) {
+            $hasMembers = ! empty($memberIdsByType[$type->value]);
+            if ($type === EmployeeType::Analyst || $hasMembers) {
+                $rules["due_dates.{$type->value}"] = ['required', 'date'];
+            }
+        }
+
+        $validator = validator(['due_dates' => $dueDates], $rules);
+
+        if ($validator->fails()) {
+            throw new ValidationException($validator);
+        }
+
+        /** @var array<string, string> */
+        return collect($validator->validated()['due_dates'] ?? [])
+            ->map(fn ($date) => Carbon::parse($date)->toDateString())
+            ->all();
+    }
+
+    /**
+     * @param  array<string, array<int, int>>  $memberIdsByType
+     * @param  array<string, string>  $dueDatesByRole
+     */
+    public function assign(
+        CaseFile $case,
+        array $memberIdsByType,
+        int $assignedBy,
+        array $dueDatesByRole,
+    ): Collection {
         $analystIds = collect($memberIdsByType[EmployeeType::Analyst->value] ?? [])
             ->map(fn ($id) => (int) $id)
             ->filter(fn ($id) => $id > 0)
@@ -96,6 +145,18 @@ class CaseTeamAssignmentService
             $leadId = (int) $analystIds->first();
         }
 
+        $dueDatesByUserId = [];
+        foreach (EmployeeType::cases() as $type) {
+            $roleDue = $dueDatesByRole[$type->value] ?? null;
+            if (! $roleDue) {
+                continue;
+            }
+
+            foreach ($memberIdsByType[$type->value] ?? [] as $userId) {
+                $dueDatesByUserId[(int) $userId] = $roleDue;
+            }
+        }
+
         $allIds = collect($memberIdsByType)
             ->flatten()
             ->map(fn ($id) => (int) $id)
@@ -104,7 +165,7 @@ class CaseTeamAssignmentService
             ->values()
             ->all();
 
-        $case->syncAnalystTeam($allIds, $leadId, $assignedBy);
+        $case->syncAnalystTeam($allIds, $leadId, $assignedBy, $dueDatesByUserId);
 
         $team = User::query()
             ->whereIn('id', $allIds)
@@ -115,7 +176,7 @@ class CaseTeamAssignmentService
         $leadId = (int) $case->assigned_to;
         $assignerLabel = User::query()->find($assignedBy)?->displayNameWithRole();
 
-        $case->loadMissing(['company', 'order.package']);
+        $case->loadMissing(['company', 'order.package', 'analysts']);
 
         foreach ($team as $member) {
             try {

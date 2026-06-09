@@ -33,6 +33,10 @@ async function submitPostRequest(url, body, options) {
     }
 
     if (res.ok || res.status === 0) {
+        if (data.toast?.type === 'error') {
+            return { ok: false, data };
+        }
+
         if (data.redirect && !options.silent) {
             setTimeout(() => {
                 window.location.href = data.redirect;
@@ -54,7 +58,38 @@ async function submitPostRequest(url, body, options) {
 
 window.submitPostRequest = submitPostRequest;
 
-const AJAX_SKIP_IDS = new Set(['kyc-upload-form', 'kyc-submit-form', 'order-form', 'report-upload-form']);
+function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+            const result = reader.result;
+            resolve(result.includes(',') ? result.split(',')[1] : result);
+        };
+        reader.onerror = () => reject(new Error('read failed'));
+        reader.readAsDataURL(file);
+    });
+}
+
+async function buildFormBody(form) {
+    const body = new FormData(form);
+
+    if (form.id !== 'order-form') {
+        return body;
+    }
+
+    const fileInput = document.getElementById('order_documents');
+    const files = fileInput?.files;
+    if (files?.length) {
+        for (let i = 0; i < files.length; i++) {
+            body.append(`documents[${i}][name]`, files[i].name);
+            body.append(`documents[${i}][data]`, await fileToBase64(files[i]));
+        }
+    }
+
+    return body;
+}
+
+const AJAX_SKIP_IDS = new Set(['kyc-upload-form', 'kyc-submit-form', 'report-upload-form']);
 
 function formMethod(form) {
     return (form.getAttribute('method') || 'get').toLowerCase();
@@ -75,10 +110,12 @@ function shouldSkipGlobalLock(form) {
 
 function shouldSkipAjax(form) {
     if (form.dataset.noToast !== undefined) return true;
+    if (form.hasAttribute('data-file-download')) return true;
     if (AJAX_SKIP_IDS.has(form.id)) return true;
     if (form.hasAttribute('data-binary-upload')) return true;
     if (form.hasAttribute('data-profile-form')) return true;
     if (form.action && form.action.includes('/logout')) return true;
+    if (form.action && form.action.includes('/download')) return true;
     return false;
 }
 
@@ -138,6 +175,15 @@ function releaseFormSubmitLock(form) {
     }
 }
 
+function closeModalAfterSubmit(form) {
+    if (!form.id) return;
+    const modalBtn = document.querySelector(`[data-modal-submit="${form.id}"][data-modal-close-after]`);
+    const modalId = modalBtn?.getAttribute('data-modal-close-after');
+    if (modalId) {
+        window.closePortalModal?.(modalId);
+    }
+}
+
 window.lockSubmitForm = lockFormSubmitButtons;
 window.unlockSubmitForm = releaseFormSubmitLock;
 
@@ -162,17 +208,13 @@ document.addEventListener('submit', async (e) => {
     e.preventDefault();
 
     try {
-        const result = await submitPostRequest(form.action, new FormData(form));
-        if (!result.ok) {
+        const result = await submitPostRequest(form.action, await buildFormBody(form));
+        if (result.ok) {
+            closeModalAfterSubmit(form);
+        } else {
             releaseFormSubmitLock(form);
         }
     } catch {
         releaseFormSubmitLock(form);
     }
 });
-
-document.addEventListener('click', (e) => {
-    const btn = e.target.closest('[data-modal-submit]');
-    if (!btn || btn.disabled || btn.classList.contains('is-submitting')) return;
-    lockSubmitButton(btn);
-}, true);

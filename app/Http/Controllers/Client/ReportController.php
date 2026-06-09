@@ -4,20 +4,14 @@ namespace App\Http\Controllers\Client;
 
 use App\Http\Controllers\Controller;
 use App\Models\Report;
+use App\Services\ReportAccessService;
 use App\Support\CompanyFilter;
-use App\Services\AuditService;
-use App\Services\PublicUploadService;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
-use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class ReportController extends Controller
 {
-    public function __construct(
-        private AuditService $audit,
-        private PublicUploadService $uploads,
-    ) {}
+    public function __construct(private ReportAccessService $access) {}
 
     public function index(Request $request): View
     {
@@ -63,26 +57,8 @@ class ReportController extends Controller
         return view('client.reports.show', compact('report'));
     }
 
-    public function download(Request $request, Report $report): BinaryFileResponse|RedirectResponse
-    {
-        $this->authorizeReport($report);
-
-        if ($report->is_password_protected) {
-            $request->validate(['file_password' => ['required', 'string']]);
-            if ($request->file_password !== $report->file_password) {
-                return back()->withErrors(['file_password' => 'Incorrect file password.']);
-            }
-        }
-
-        $report->update(['downloaded_at' => now()]);
-        $this->audit->log('report.downloaded', $report);
-
-        return $this->uploads->download($report->path, $report->original_name);
-    }
-
     private function authorizeReport(Report $report): void
     {
-        abort_unless($report->delivered_at, 403);
-        CompanyFilter::authorizeCompanyAccess($report->caseFile->company_id);
+        abort_unless($this->access->canViewDelivered($report, auth()->user()), 403);
     }
 }

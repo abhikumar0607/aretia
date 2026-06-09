@@ -10,8 +10,8 @@
     'case' => $case,
     'backRoute' => route('superadmin.cases.index'),
     'backLabel' => 'All cases',
-    'enableChat' => true,
-    'chatLabel' => 'Open case chat',
+    'enableChat' => auth()->user()->hasPermission('chat.client') && $case->canUseCaseChat(auth()->user()),
+    'chatLabel' => 'Case chat',
 ])
 
 @include('partials.case-related-cases', [
@@ -19,40 +19,13 @@
 ])
 
 <div class="case-actions-grid">
-    <section class="case-action-card card">
-        <div class="case-panel-head">
-            <h3>Assign team</h3>
-            <p class="case-panel-sub">You can assign multiple people per role. At least one <strong>Analyst</strong>, one <strong>QA</strong>, and one <strong>FQA</strong> are required. The lead is the assigned Analyst.</p>
-        </div>
-
-        <form method="POST" action="{{ route('superadmin.cases.assign', $case) }}" class="case-action-form">
-            @csrf
-
-            @foreach(\App\Enums\EmployeeType::cases() as $employeeType)
-                @php
-                    $options = $employeesByType->get($employeeType->value, collect());
-                    $selectedIds = old(
-                        'team.'.$employeeType->value,
-                        ($teamByType[$employeeType->value] ?? collect())->pluck('id')->all()
-                    );
-                @endphp
-
-                @include('partials.form-multi-select', [
-                    'name' => 'team['.$employeeType->value.']',
-                    'label' => $employeeType->label(),
-                    'placeholder' => 'Select '.$employeeType->label().'…',
-                    'options' => $options->map(fn ($e) => ['value' => $e->id, 'label' => $e->displayNameWithRole()])->all(),
-                    'selected' => $selectedIds,
-                    'min' => 1,
-                    'hint' => $options->isEmpty()
-                        ? 'No active '.$employeeType->label().' employee. Add one from Employees.'
-                        : null,
-                ])
-            @endforeach
-
-            <button type="submit" class="btn btn-primary btn-sm" style="margin-top:0.75rem;">Save team assignment</button>
-        </form>
-    </section>
+    @perm('cases.manage')
+    @include('partials.case-assign-team-form', [
+        'case' => $case,
+        'employeesByType' => $employeesByType,
+        'teamByType' => $teamByType,
+        'assignRoute' => route('superadmin.cases.assign', $case),
+    ])
 
     <section class="case-action-card card">
         <div class="case-panel-head">
@@ -76,19 +49,30 @@
             <button type="submit" class="btn btn-primary btn-sm">Update stage</button>
         </form>
     </section>
+    @endperm
 
+    @perm('reports.manage')
     @include('partials.case-report-upload', [
         'case' => $case,
         'storeRoute' => route('superadmin.cases.reports.store', $case),
     ])
+    @endperm
 </div>
 
+@include('partials.case-delivered-reports', ['case' => $case])
+
+@include('partials.case-internal-comments', ['case' => $case])
 @include('partials.case-panel', ['case' => $case, 'showUpload' => true])
+@perm('chat.client')
 @include('partials.case-chat', ['case' => $case])
+@endperm
 
 @push('scripts')
+@perm('chat.client')
 <script src="{{ asset('js/case-chat.js') }}" defer></script>
+@endperm
 <script src="{{ asset('js/form-multi-select.js') }}" defer></script>
+<script src="{{ asset('js/case-assign-team.js') }}" defer></script>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     const toggle = document.getElementById('report_password_toggle');

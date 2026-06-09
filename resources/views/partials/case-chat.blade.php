@@ -1,19 +1,14 @@
 @php
     $chatUser = auth()->user();
-    $chatPartner = $case->chatPartnerFor($chatUser);
-    $isStaffSide = in_array($chatUser->role->value, ['admin', 'superadmin'], true);
-
-    $chatTitle = $chatPartner?->name ?? ($isStaffSide ? 'Client user' : 'Analyst');
-    $chatSubtitle = $isStaffSide
-        ? trim(($case->company->name ?? 'Company').($chatPartner?->email ? ' · '.$chatPartner->email : ''))
-        : ($chatPartner ? 'Assigned analyst' : 'Analyst not assigned yet');
+    $chatService = app(\App\Services\CaseChatService::class);
+    $chatTitle = $chatService->threadTitle($case);
+    $chatSubtitle = $chatService->threadSubtitle($case);
 @endphp
 <div id="case-chat-root"
     class="case-chat-root"
     data-case-id="{{ $case->id }}"
     data-case-ref="{{ $case->reference }}"
-    data-partner-id="{{ $chatPartner?->id }}"
-    data-partner-name="{{ $chatPartner?->name }}"
+    data-partner-name="{{ $chatTitle }}"
     data-my-name="{{ $chatUser->name }}"
     data-index-url="{{ route('cases.messages.index', $case) }}"
     data-store-url="{{ route('cases.messages.store', $case) }}"
@@ -23,10 +18,9 @@
     <div id="case-chat-widget" class="case-chat-widget" hidden aria-hidden="true">
         <div class="case-chat-widget-head">
             <div class="case-chat-widget-title">
-                <span class="case-chat-with-label">Chat with</span>
                 <strong class="case-chat-partner-name">{{ $chatTitle }}</strong>
                 <span class="case-chat-partner-meta">{{ $chatSubtitle }}</span>
-                <span class="case-chat-case-ref">Case: {{ $case->reference }}</span>
+                <span class="case-chat-case-ref">Shared thread — all messages on this case</span>
             </div>
             <button type="button" class="case-chat-close" id="case-chat-close" aria-label="Close chat">
                 <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>

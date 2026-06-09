@@ -5,6 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const textEl = wrap.querySelector('.ms-trigger-text');
         const inputs = () => [...wrap.querySelectorAll('.ms-panel input[type="checkbox"]')];
         const min = parseInt(wrap.dataset.min || '1', 10);
+        const requiredMessage = wrap.dataset.requiredMessage || 'Please select at least one option.';
 
         if (!trigger || !panel || !textEl) return;
 
@@ -68,7 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const count = inputs().filter((i) => i.checked).length;
                 if (count < min) {
                     e.preventDefault();
-                    window.showToast?.('error', 'Please select at least one option.', { title: 'Required' });
+                    window.showToast?.('error', requiredMessage, { title: 'Required' });
                     open();
                 }
             });

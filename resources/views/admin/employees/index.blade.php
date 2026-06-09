@@ -9,10 +9,12 @@
         <p>Manage Analyst, QA, and FQA team accounts.</p>
     </div>
     <div class="listing-hero-actions">
+        @perm('employees.manage')
         <a href="{{ route('admin.employees.create') }}" class="btn btn-primary">
             <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
             Add employee
         </a>
+        @endperm
     </div>
 </header>
 
@@ -51,7 +53,7 @@
             </thead>
             <tbody>
             @forelse($employees as $employee)
-                @php $canManage = in_array($employee->id, $manageableUserIds, true); @endphp
+                @php $canManage = in_array($employee->id, $manageableUserIds, true) && auth()->user()->hasPermission('employees.manage'); @endphp
                 <tr>
                     <td>
                         <div class="analyst-cell">

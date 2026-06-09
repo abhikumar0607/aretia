@@ -38,7 +38,7 @@
 <div class="listing-panel">
     @include('partials.listing-toolbar', [
         'action' => route('client.orders.index'),
-        'placeholder' => 'Search reference or subject…',
+        'placeholder' => 'Search reference, subject or company…',
         'filters' => array_values(array_filter([
             ! empty($companyOptions) ? [
                 'name' => 'company',
@@ -83,7 +83,11 @@
                     <td>{{ $order->company?->name ?? '—' }}</td>
                     <td><span class="pill pill-package">{{ $order->package->name }}</span></td>
                     <td>
-                        <span class="cell-muted">{{ $order->subject_name ?? ($order->custom_request ? 'Custom request' : '—') }}</span>
+                        @include('partials.order-subject-cell', [
+                            'order' => $order,
+                            'muted' => true,
+                            'fallback' => $order->custom_request ? 'Custom request' : '—',
+                        ])
                     </td>
                     <td>
                         <span class="cell-date">{{ $order->due_date?->format('d M Y') ?? 'TBD' }}</span>

@@ -1,10 +1,7 @@
 @auth
 @php
     $headerUser = auth()->user();
-    $showChatInbox = $headerUser->hasRole(\App\Enums\UserRole::Client)
-        || $headerUser->isEmployee()
-        || $headerUser->hasRole(\App\Enums\UserRole::Admin)
-        || $headerUser->hasRole(\App\Enums\UserRole::SuperAdmin);
+    $showChatInbox = $headerUser->hasAnyChatPermission();
 @endphp
 <div class="portal-topbar">
     <div class="portal-topbar-inner">
@@ -33,10 +30,12 @@
                             <span>{{ $headerUser->email }}</span>
                         </div>
                     </div>
+                    @if($headerUser->hasPermission('profile.edit'))
                     <a href="{{ route('profile.edit') }}" class="portal-user-dropdown-item">
                         <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
                         My Profile
                     </a>
+                    @endif
                     <form method="POST" action="{{ route('logout') }}" class="portal-user-dropdown-logout">
                         @csrf
                         <button type="submit" class="portal-user-dropdown-item portal-user-dropdown-logout-btn">

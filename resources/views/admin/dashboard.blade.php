@@ -11,6 +11,8 @@
 
     'filterAction' => route('admin.dashboard'),
 
+    'showScopeFilters' => true,
+
     'heading' => 'Overview',
 
     'description' => 'Platform totals for cases and orders in your current filter view.',
@@ -20,8 +22,6 @@
         ['label' => 'Total cases', 'value' => $stats['total_cases'], 'accent' => true],
 
         ['label' => 'Total orders', 'value' => $stats['total_orders']],
-
-        ['label' => 'Confirmed orders', 'value' => $stats['confirmed_orders']],
 
         ['label' => 'Pending orders', 'value' => $stats['pending_orders'], 'warn' => $stats['pending_orders'] > 0],
 

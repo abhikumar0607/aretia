@@ -6,17 +6,20 @@
     <p><strong>File:</strong> {{ $report->original_name }}</p>
     <p><strong>Delivered:</strong> {{ $report->delivered_at->format('d M Y H:i') }}</p>
     @if($report->is_password_protected)
-        <form method="POST" action="{{ route('client.reports.download', $report) }}">
+        <p class="form-field-hint" style="margin-bottom:1rem;">Your file password was sent to your email and portal notifications for case <strong>{{ $report->caseFile->reference }}</strong>.</p>
+        <form method="POST" action="{{ route('client.reports.download', $report) }}" data-file-download>
             @csrf
-            <label>File password</label>
-            <input type="password" name="file_password" required>
+            <div class="form-field">
+                <label for="file_password">File password</label>
+                <input type="password" name="file_password" id="file_password" required>
+                @error('file_password')
+                    <p class="form-field-error">{{ $message }}</p>
+                @enderror
+            </div>
             <button type="submit" class="btn btn-primary">Download secure report</button>
         </form>
     @else
-        <form method="POST" action="{{ route('client.reports.download', $report) }}">
-            @csrf
-            <button type="submit" class="btn btn-primary">Download report</button>
-        </form>
+        <a href="{{ route('client.reports.download', $report) }}" class="btn btn-primary">Download report</a>
     @endif
 </div>
 @endsection

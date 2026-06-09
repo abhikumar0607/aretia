@@ -47,7 +47,7 @@ class DashboardController extends Controller
     private function adminStats(DashboardFilters $filters): array
     {
         $ordersQuery = Order::query();
-        $filters->applyDateScope($ordersQuery);
+        $filters->applyOrderScope($ordersQuery);
 
         return [
             'total_cases' => $this->platformCaseCount($filters),

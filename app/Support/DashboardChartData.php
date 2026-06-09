@@ -26,7 +26,7 @@ class DashboardChartData
             self::buildChart('admin', 'cases-stage', 'Cases by workflow stage', self::platformCasesByStage($filters), true),
             self::buildChart('admin', 'orders', 'Orders by status', self::orderStatusSlices(
                 null,
-                fn (Builder $q) => $filters->applyDateScope($q),
+                fn (Builder $q) => $filters->applyOrderScope($q),
                 true
             ), true),
         ];
@@ -43,7 +43,7 @@ class DashboardChartData
             self::buildChart('superadmin', 'cases-stage', 'Cases by workflow stage', self::platformCasesByStage($filters), true),
             self::buildChart('superadmin', 'orders', 'Orders by status', self::orderStatusSlices(
                 null,
-                fn (Builder $q) => $filters->applyDateScope($q),
+                fn (Builder $q) => $filters->applyOrderScope($q),
                 true
             ), true),
         ];
@@ -67,7 +67,7 @@ class DashboardChartData
         $companyScope = fn (Builder $q) => $q->where('company_id', $companyId);
 
         return [
-            self::buildChart('client', 'cases-stage', 'Your cases by stage', self::companyCasesByStage($companyId, $filters), true),
+            self::buildChart('client', 'cases-stage', 'Your cases by stage', self::clientCompanyCasesByStage($companyId, $filters), true),
             self::buildChart('client', 'orders', 'Orders by status', self::orderStatusSlices(
                 $companyScope,
                 fn (Builder $q) => $filters->applyDateScope($q),
@@ -183,6 +183,7 @@ class DashboardChartData
                 'label' => $stage->name,
                 'value' => $query->count(),
                 'color' => $stage->color ?: '#94a3b8',
+                'stage_id' => $stage->id,
             ];
         }
 
@@ -218,6 +219,35 @@ class DashboardChartData
                 'label' => $stage->name,
                 'value' => $query->count(),
                 'color' => $stage->color ?: '#94a3b8',
+                'stage_id' => $stage->id,
+            ];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * Client-facing case stages for dashboard (simplified pipeline).
+     *
+     * @return list<array{label: string, value: int, color: string, client_stage_slug: string}>
+     */
+    private static function clientCompanyCasesByStage(int $companyId, ?DashboardFilters $filters = null): array
+    {
+        $filters ??= new DashboardFilters;
+        $rows = [];
+
+        foreach (CaseWorkflow::clientStageOptions() as $clientSlug => $label) {
+            $query = CaseFile::where('company_id', $companyId);
+            $filters->applyCaseScope($query);
+            CaseListFilters::applyClientStage($query, $clientSlug);
+
+            $rows[] = [
+                'label' => $label,
+                'value' => $query->count(),
+                'color' => CaseWorkflow::clientStageColor(
+                    CaseWorkflow::internalSlugsForClientStage($clientSlug)[0] ?? CaseWorkflow::SLUG_ASSIGNED
+                ),
+                'client_stage_slug' => $clientSlug,
             ];
         }
 
@@ -314,6 +344,10 @@ class DashboardChartData
             }
         };
 
+        $assignedStageId = WorkflowStage::query()
+            ->where('slug', CaseWorkflow::SLUG_ASSIGNED)
+            ->value('id');
+
         foreach ($stages as $stage) {
             if (! $filters->shouldIncludeStageSlug($stage->slug)) {
                 continue;
@@ -330,6 +364,7 @@ class DashboardChartData
                     'label' => $stage->name,
                     'value' => $count,
                     'color' => $stage->color ?: '#94a3b8',
+                    'stage_id' => $stage->id,
                 ];
             }
         }
@@ -345,6 +380,7 @@ class DashboardChartData
                 'label' => 'Unassigned stage',
                 'value' => $unassignedCount,
                 'color' => '#cbd5e1',
+                'stage_id' => $assignedStageId ? (int) $assignedStageId : null,
             ];
         }
 
@@ -416,6 +452,22 @@ class DashboardChartData
             'canvas_labels' => array_column($nonZero, 'label'),
             'canvas_values' => array_column($nonZero, 'value'),
             'canvas_colors' => array_column($nonZero, 'color'),
+            'stage_ids' => array_map(
+                fn (array $slice) => isset($slice['stage_id']) ? (int) $slice['stage_id'] : null,
+                $slices
+            ),
+            'client_stage_slugs' => array_map(
+                fn (array $slice) => $slice['client_stage_slug'] ?? null,
+                $slices
+            ),
+            'canvas_stage_ids' => array_values(array_map(
+                fn (array $slice) => isset($slice['stage_id']) ? (int) $slice['stage_id'] : null,
+                $nonZero
+            )),
+            'canvas_client_stage_slugs' => array_values(array_map(
+                fn (array $slice) => $slice['client_stage_slug'] ?? null,
+                $nonZero
+            )),
         ];
     }
 

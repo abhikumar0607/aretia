@@ -55,7 +55,7 @@
                     @forelse($clientUsers as $clientUser)
                         @php
                             $company = $clientUser->company;
-                            $canManage = in_array($clientUser->id, $manageableUserIds, true);
+                            $canManage = in_array($clientUser->id, $manageableUserIds, true) && auth()->user()->hasPermission('clients.manage');
                             $onboardingReview = $company && in_array($company->status->value, ['pending', 'kyc_submitted'], true);
                         @endphp
                         <tr class="data-table-row">

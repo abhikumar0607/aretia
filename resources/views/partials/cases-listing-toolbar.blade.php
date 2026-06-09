@@ -26,19 +26,33 @@
 
     ];
 
+    if (! empty($packageOptions)) {
+
+        $filters[] = [
+
+            'name' => 'package',
+
+            'label' => 'All packages',
+
+            'options' => $packageOptions,
+
+        ];
+
+    }
+
 @endphp
 
 @include('partials.listing-toolbar', [
 
     'action' => $action,
 
-    'placeholder' => $placeholder ?? 'Search case, order or company…',
+    'placeholder' => $placeholder ?? 'Search case, subject, order or company…',
 
     'filters' => $filters,
 
     'showPeriodFilter' => true,
 
-    'preserve' => ['q', 'company', 'stage', 'period', 'date_from', 'date_to'],
+    'preserve' => ['q', 'company', 'stage', 'package', 'team_user', 'period', 'date_from', 'date_to', 'sort', 'dir'],
 
     'periodSelectId' => 'cases-filter-period',
 

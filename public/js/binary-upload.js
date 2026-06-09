@@ -123,38 +123,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    const orderForm = document.getElementById('order-form');
-    if (orderForm) {
-        const fileInput = document.getElementById('order_documents');
-        const btn = orderForm.querySelector('[type="submit"]');
-        const btnHtml = btn?.innerHTML;
-
-        orderForm.addEventListener('submit', async (e) => {
-            const files = fileInput?.files;
-            if (!files?.length) return;
-
-            e.preventDefault();
-
-            if (btn) {
-                btn.disabled = true;
-                btn.textContent = 'Submitting...';
-            }
-
-            const body = new FormData(orderForm);
-            for (let i = 0; i < files.length; i++) {
-                body.append(`documents[${i}][name]`, files[i].name);
-                body.append(`documents[${i}][data]`, await fileToBase64(files[i]));
-            }
-
-            const result = await window.submitPostRequest(orderForm.action, body);
-
-            if (!result.ok && btn) {
-                btn.disabled = false;
-                btn.innerHTML = btnHtml;
-            }
-        });
-    }
-
     const reportForm = document.getElementById('report-upload-form');
     if (reportForm) {
         const input = reportForm.querySelector('input[type="file"]');
@@ -180,11 +148,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 body.append(`documents[${i}][data]`, await fileToBase64(files[i]));
             }
 
-            const result = await window.submitPostRequest(reportForm.action, body);
+            try {
+                const result = await window.submitPostRequest(reportForm.action, body);
 
-            if (!result.ok && btn) {
-                btn.disabled = false;
-                btn.innerHTML = btnHtml;
+                if (!result.ok && btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = btnHtml;
+                }
+            } catch {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = btnHtml;
+                }
             }
         });
     }
