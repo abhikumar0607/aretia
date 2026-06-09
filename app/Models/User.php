@@ -56,6 +56,16 @@ class User extends Authenticatable
         return $this->role->value === $value;
     }
 
+    public function hasPermission(\App\Enums\Permission|string $permission): bool
+    {
+        return app(\App\Services\PermissionService::class)->allows($this, $permission);
+    }
+
+    public function hasAnyChatPermission(): bool
+    {
+        return $this->hasPermission(\App\Enums\Permission::ChatClient);
+    }
+
     public function isEmployee(): bool
     {
         return $this->role->isEmployeeRole();

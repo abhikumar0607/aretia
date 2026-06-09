@@ -21,7 +21,61 @@ class CaseFile extends Model
 
     protected function casts(): array
     {
-        return ['assigned_at' => 'datetime'];
+        return [
+            'assigned_at' => 'datetime',
+        ];
+    }
+
+    public function portalDueDate(?User $viewer = null): ?\Illuminate\Support\Carbon
+    {
+        return $this->employeeDueDateFor($viewer ?? auth()->user())
+            ?? ($viewer?->isEmployee() ? null : $this->order?->due_date);
+    }
+
+    public function employeeDueDateFor(User|int|null $user): ?\Illuminate\Support\Carbon
+    {
+        if (! $user) {
+            return null;
+        }
+
+        $userId = $user instanceof User ? $user->id : (int) $user;
+
+        if (! $this->hasAnalyst($userId)) {
+            return null;
+        }
+
+        $member = $this->relationLoaded('analysts')
+            ? $this->analysts->firstWhere('id', $userId)
+            : $this->analysts()->where('users.id', $userId)->first();
+
+        $dueDate = $member?->pivot?->due_date;
+
+        return $dueDate ? \Illuminate\Support\Carbon::parse($dueDate) : null;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function teamDueDatesByRole(): array
+    {
+        $team = $this->relationLoaded('analysts')
+            ? $this->analysts
+            : $this->analysts()->get();
+
+        $dates = [];
+        foreach ($team as $member) {
+            $role = $member->role->value;
+            if ($member->pivot->due_date && ! isset($dates[$role])) {
+                $dates[$role] = \Illuminate\Support\Carbon::parse($member->pivot->due_date)->format('Y-m-d');
+            }
+        }
+
+        return $dates;
+    }
+
+    public function portalDueDateLabel(?User $viewer = null): string
+    {
+        return $this->portalDueDate($viewer)?->format('d M Y') ?? 'TBD';
     }
 
     public function order(): BelongsTo
@@ -65,6 +119,7 @@ class CaseFile extends Model
     public function analysts(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'case_analyst', 'case_id', 'user_id')
+            ->withPivot('due_date')
             ->withTimestamps()
             ->orderBy('users.name');
     }
@@ -81,9 +136,16 @@ class CaseFile extends Model
             || (int) $this->assigned_to === (int) $userId;
     }
 
-    /** @param  array<int, int|string>  $analystIds */
-    public function syncAnalystTeam(array $analystIds, int $leadAnalystId, int $assignedBy): void
-    {
+    /**
+     * @param  array<int, int|string>  $analystIds
+     * @param  array<int, string>  $dueDatesByUserId
+     */
+    public function syncAnalystTeam(
+        array $analystIds,
+        int $leadAnalystId,
+        int $assignedBy,
+        array $dueDatesByUserId = [],
+    ): void {
         $ids = collect($analystIds)
             ->map(fn ($id) => (int) $id)
             ->filter(fn ($id) => $id > 0)
@@ -94,7 +156,16 @@ class CaseFile extends Model
             $ids->prepend($leadAnalystId);
         }
 
-        $this->analysts()->sync($ids->all());
+        $syncPayload = [];
+        foreach ($ids as $userId) {
+            $payload = [];
+            if (! empty($dueDatesByUserId[$userId])) {
+                $payload['due_date'] = $dueDatesByUserId[$userId];
+            }
+            $syncPayload[$userId] = $payload;
+        }
+
+        $this->analysts()->sync($syncPayload);
 
         $this->update([
             'assigned_to' => $leadAnalystId,
@@ -173,9 +244,37 @@ class CaseFile extends Model
         return $this->hasMany(Message::class, 'case_id');
     }
 
+    public function comments(): HasMany
+    {
+        return $this->hasMany(CaseComment::class, 'case_id')->oldest();
+    }
+
     public function documents(): MorphMany
     {
-        return $this->morphMany(Document::class, 'documentable');
+        return $this->morphMany(Document::class, 'documentable')->latest();
+    }
+
+    public function documentsForViewer(?User $viewer = null): \Illuminate\Support\Collection
+    {
+        $viewer ??= auth()->user();
+
+        $documents = $this->relationLoaded('documents')
+            ? $this->documents
+            : $this->documents()->with('uploader')->get();
+
+        if ($documents->isNotEmpty() && ! $documents->first()->relationLoaded('uploader')) {
+            $documents->load('uploader');
+        }
+
+        $documents = $documents->sortByDesc('created_at')->values();
+
+        if ($viewer?->hasRole(UserRole::Client)) {
+            return $documents
+                ->filter(fn (Document $doc) => $doc->isVisibleToClient())
+                ->values();
+        }
+
+        return $documents;
     }
 
     public function report(): HasMany
@@ -186,6 +285,62 @@ class CaseFile extends Model
     public function latestReport()
     {
         return $this->hasOne(Report::class, 'case_id')->latestOfMany();
+    }
+
+    public function visibleStageLabel(?User $viewer = null): string
+    {
+        $viewer ??= auth()->user();
+
+        if ($viewer?->hasRole(UserRole::Client)) {
+            return \App\Support\CaseWorkflow::clientStageLabel($this->stage?->slug);
+        }
+
+        return $this->stage?->name ?? '—';
+    }
+
+    public function visibleStageColor(?User $viewer = null): string
+    {
+        $viewer ??= auth()->user();
+
+        if ($viewer?->hasRole(UserRole::Client)) {
+            return \App\Support\CaseWorkflow::clientStageColor($this->stage?->slug);
+        }
+
+        return $this->stage?->color ?? '#6366f1';
+    }
+
+    /**
+     * Client-facing milestone history (internal QA/FQA steps hidden).
+     *
+     * @return \Illuminate\Support\Collection<int, object{label: string, color: string, updated_at: \Illuminate\Support\Carbon}>
+     */
+    public function clientVisibleStageHistories(): \Illuminate\Support\Collection
+    {
+        $histories = $this->relationLoaded('stageHistories')
+            ? $this->stageHistories->sortBy('created_at')->values()
+            : $this->stageHistories()->with('stage')->orderBy('created_at')->get();
+
+        $entries = collect();
+        $lastClientSlug = null;
+
+        foreach ($histories as $history) {
+            $clientSlug = \App\Support\CaseWorkflow::clientStageSlug($history->stage?->slug);
+
+            if ($clientSlug === $lastClientSlug) {
+                $entries->last()->updated_at = $history->created_at;
+
+                continue;
+            }
+
+            $entries->push((object) [
+                'label' => \App\Support\CaseWorkflow::clientStageLabel($history->stage?->slug),
+                'color' => \App\Support\CaseWorkflow::clientStageColor($history->stage?->slug),
+                'updated_at' => $history->created_at,
+            ]);
+            $lastClientSlug = $clientSlug;
+        }
+
+        return $entries;
     }
 
     public static function generateReference(): string
@@ -234,36 +389,16 @@ class CaseFile extends Model
         ];
     }
 
-    /** Whether the viewer can use case chat (requires an assigned analyst). */
+    /** Whether the viewer can use case chat. */
     public function isChatAvailableFor(?User $viewer = null): bool
     {
-        if (! $this->assigned_to) {
-            return false;
-        }
-
         $viewer ??= auth()->user();
-        if (! $viewer) {
-            return false;
-        }
 
-        if ($viewer->hasRole(UserRole::Client)) {
-            return \App\Support\CompanyFilter::userCanAccessCompany($viewer, $this->company_id);
-        }
-
-        if ($viewer->role->isEmployeeRole()) {
-            return $this->hasAnalyst($viewer);
-        }
-
-        return false;
+        return $viewer && app(\App\Services\CaseChatService::class)->canUseCaseChat($this, $viewer);
     }
 
-    /** Client contact for analyst/admin, or assigned analyst for client. */
-    public function chatPartnerFor(User $viewer): ?User
+    public function canUseCaseChat(?User $viewer = null): bool
     {
-        if ($viewer->role->isEmployeeRole() || $viewer->hasRole(UserRole::Admin) || $viewer->hasRole(UserRole::SuperAdmin)) {
-            return $this->resolvedClient();
-        }
-
-        return $this->isChatAvailableFor($viewer) ? $this->assignee : null;
+        return $this->isChatAvailableFor($viewer);
     }
 }

@@ -27,8 +27,7 @@ class CaseController extends Controller
 
         $query = CaseFile::whereIn('company_id', $companyIds)
             ->with(['company', 'order.package', 'stage', 'assignee', 'latestReport'])
-            ->tap(fn ($q) => CaseListFilters::apply($q, $request))
-            ->latest();
+            ->tap(fn ($q) => CaseListFilters::apply($q, $request, clientStages: true));
 
         $cases = $query->paginate(config('portal.per_page'))->withQueryString();
 
@@ -42,13 +41,15 @@ class CaseController extends Controller
                 ->count(),
         ];
 
-        $stageOptions = CaseListFilters::stageOptions();
+        $stageOptions = \App\Support\CaseWorkflow::clientStageOptions();
+        $packageOptions = CaseListFilters::packageOptions();
         $companyOptions = CompanyFilter::optionsForUser($request->user());
 
         return view('client.cases.index', [
             'cases' => $cases,
             'stats' => $stats,
             'stageOptions' => $stageOptions,
+            'packageOptions' => $packageOptions,
             'companyOptions' => $companyOptions,
             'enableCaseLinking' => true,
             'linkCasesRoute' => route('client.cases.link'),
@@ -73,7 +74,7 @@ class CaseController extends Controller
 
         $this->caseDocuments->syncFromOrder($case);
 
-        $case->load(['company', 'order.package', 'stage', 'assignee', 'analysts', 'stageHistories.stage', 'stageHistories.user', 'messages.sender', 'documents.uploader', 'latestReport']);
+        $case->load(['company', 'order.package', 'stage', 'assignee', 'analysts', 'stageHistories.stage', 'stageHistories.user', 'messages.sender', 'documents.uploader', 'latestReport', 'report.uploader']);
         $relatedCases = $this->caseLinks->relatedCasesFor($case);
 
         return view('client.cases.show', compact('case', 'relatedCases'));

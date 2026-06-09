@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\Permission;
 use App\Services\PublicUploadService;
 use App\Support\Toast;
 use Illuminate\Http\JsonResponse;
@@ -22,6 +23,7 @@ class ProfileController extends Controller
 
     public function edit(): View
     {
+        abort_unless(auth()->user()->hasPermission(Permission::ProfileEdit), 403, 'You do not have permission to edit your profile.');
         return view('profile.edit', [
             'user' => auth()->user()->load('company'),
         ]);
@@ -29,6 +31,8 @@ class ProfileController extends Controller
 
     public function update(Request $request): JsonResponse|RedirectResponse
     {
+        abort_unless(auth()->user()->hasPermission(Permission::ProfileEdit), 403, 'You do not have permission to edit your profile.');
+
         $user = auth()->user();
 
         $data = $request->validate([

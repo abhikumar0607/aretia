@@ -14,64 +14,17 @@
         'action' => \App\Support\PortalRoute::route('cases.index'),
         'stageOptions' => $stageOptions,
         'companyOptions' => $companyOptions,
+        'packageOptions' => $packageOptions,
     ])
 
-    <div class="data-table-wrap">
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>Reference</th>
-                    <th>Company</th>
-                    <th>Client</th>
-                    <th>Package</th>
-                    <th>Confirmed</th>
-                    <th>Due date</th>
-                    <th>Stage</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-            @forelse($cases as $case)
-                <tr class="data-table-row" onclick="window.location='{{ \App\Support\PortalRoute::route('cases.show', $case) }}'">
-                    <td>
-                        <a href="{{ \App\Support\PortalRoute::route('cases.show', $case) }}" class="row-link" onclick="event.stopPropagation()">
-                            <span class="cell-ref">{{ $case->reference }}</span>
-                        </a>
-                    </td>
-                    <td>{{ $case->company->name }}</td>
-                    <td>@include('partials.case-client-cell', ['case' => $case])</td>
-                    <td><span class="pill pill-package">{{ $case->order->package->name }}</span></td>
-                    <td><span class="cell-date">{{ $case->order->confirmed_at?->format('d M Y') ?? '—' }}</span></td>
-                    <td><span class="cell-date">{{ $case->order->due_date?->format('d M Y') ?? 'TBD' }}</span></td>
-                    <td>
-                        @if($case->stage)
-                            <span class="stage-pill" style="--stage-color: {{ $case->stage->color }}">{{ $case->stage->name }}</span>
-                        @else
-                            <span class="cell-muted">—</span>
-                        @endif
-                    </td>
-                    <td class="cell-action">
-                        <a href="{{ \App\Support\PortalRoute::route('cases.show', $case) }}" class="btn btn-secondary btn-sm" onclick="event.stopPropagation()">Open</a>
-                    </td>
-                </tr>
-            @empty
-                <tr>
-                    <td colspan="8">
-                        <div class="empty-state">
-                            @if(\App\Support\CaseListFilters::hasActiveFilters(request()))
-                                <h3>No results</h3>
-                                <p>No cases match your filters.</p>
-                            @else
-                                <h3>No assigned cases</h3>
-                                <p>Your admin will assign cases to you here.</p>
-                            @endif
-                        </div>
-                    </td>
-                </tr>
-            @endforelse
-            </tbody>
-        </table>
-    </div>
+    @include('partials.cases-data-table', [
+        'cases' => $cases,
+        'rowClickable' => true,
+        'manageLabel' => 'Open',
+        'emptyTitle' => 'No assigned cases',
+        'emptyText' => 'Your admin will assign cases to you here.',
+    ])
+
     {{ $cases->links() }}
 </div>
 @endsection

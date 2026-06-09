@@ -8,6 +8,7 @@ use App\Models\CaseStageHistory;
 use App\Models\WorkflowStage;
 use App\Services\AuditService;
 use App\Services\CaseOrderDocumentService;
+use App\Services\CaseStageCompletionNotifyService;
 use App\Support\CompanyFilter;
 use App\Support\CaseWorkflow;
 use App\Support\CaseListFilters;
@@ -23,23 +24,24 @@ class CaseController extends Controller
     public function __construct(
         private AuditService $audit,
         private CaseOrderDocumentService $caseDocuments,
+        private CaseStageCompletionNotifyService $stageCompletionNotify,
     ) {}
 
     public function index(Request $request): View
     {
         $cases = CaseFile::forAnalyst(auth()->id())
-            ->with(array_merge(['company', 'order.package', 'stage'], CaseFile::clientContactWith()))
+            ->with(array_merge(['company', 'order.package', 'stage', 'analysts'], CaseFile::clientContactWith()))
             ->tap(fn ($query) => CaseListFilters::apply($query, $request))
-            ->latest()
             ->paginate(config('portal.per_page'))
             ->withQueryString();
 
         $stageOptions = CaseListFilters::stageOptions();
+        $packageOptions = CaseListFilters::packageOptions();
         $companyOptions = CompanyFilter::optionsForUser($request->user());
 
         $viewPrefix = auth()->user()->role->value;
 
-        return view($viewPrefix.'.cases.index', compact('cases', 'stageOptions', 'companyOptions'));
+        return view($viewPrefix.'.cases.index', compact('cases', 'stageOptions', 'packageOptions', 'companyOptions'));
     }
 
     public function show(CaseFile $case): View
@@ -49,7 +51,7 @@ class CaseController extends Controller
         $this->caseDocuments->syncFromOrder($case);
 
         $case->load(array_merge(
-            ['company', 'order.package', 'stage', 'assignee', 'analysts', 'stageHistories.stage', 'stageHistories.user', 'messages.sender', 'documents.uploader', 'latestReport'],
+            ['company', 'order.package', 'stage', 'assignee', 'analysts', 'stageHistories.stage', 'stageHistories.user', 'messages.sender', 'documents.uploader', 'comments.user', 'latestReport', 'report.uploader'],
             CaseFile::clientContactWith()
         ));
         $stages = WorkflowStage::where('is_active', true)->orderBy('sort_order')->get();
@@ -131,6 +133,13 @@ class CaseController extends Controller
         ]);
 
         $this->audit->log('case.stage_updated', $case, $data);
+
+        $this->stageCompletionNotify->notifyIfCompleted(
+            $case,
+            $request->user(),
+            $currentSlug,
+            $targetStage->slug,
+        );
 
         return Toast::to(PortalRoute::route('cases.show', $case), 'Stage updated successfully.');
     }

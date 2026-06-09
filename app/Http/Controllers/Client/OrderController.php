@@ -11,6 +11,7 @@ use App\Services\OrderCreationService;
 use App\Services\OrderDueDateService;
 use App\Services\PublicUploadService;
 use App\Support\CompanyFilter;
+use App\Support\OrderDuplicateSubjects;
 use App\Support\OrderListFilters;
 use App\Support\Toast;
 use Illuminate\Http\JsonResponse;
@@ -35,16 +36,11 @@ class OrderController extends Controller
             ->with(['company', 'package', 'caseFile'])
             ->latest();
 
-        if ($search = trim((string) $request->input('q'))) {
-            $query->where(function ($q) use ($search) {
-                $q->where('reference', 'like', "%{$search}%")
-                    ->orWhere('subject_name', 'like', "%{$search}%");
-            });
-        }
-
         OrderListFilters::apply($query, $request);
 
         $orders = $query->paginate(config('portal.per_page'))->withQueryString();
+
+        OrderDuplicateSubjects::markOnCollection($orders, $companyIds);
 
         $stats = [
             'total' => Order::whereIn('company_id', $companyIds)->count(),
@@ -122,7 +118,7 @@ class OrderController extends Controller
     public function show(Order $order): View
     {
         $this->authorizeOrder($order);
-        $order->load(['package', 'documents', 'caseFile.stage', 'caseFile.assignee', 'caseFile.company', 'caseFile.order.user']);
+        $order->load(['package', 'documents.uploader', 'caseFile.stage', 'caseFile.assignee', 'caseFile.company', 'caseFile.order.user']);
 
         return view('client.orders.show', compact('order'));
     }
@@ -189,8 +185,7 @@ class OrderController extends Controller
 
     public function previewDocument(Order $order, OrderDocument $document): BinaryFileResponse
     {
-        $this->authorizeOrder($order);
-        abort_unless($document->order_id === $order->id, 404);
+        $this->authorizeOrderDocument($order, $document);
 
         $full = $this->uploads->absolutePath($document->path);
         abort_unless(is_file($full), 404);
@@ -200,8 +195,7 @@ class OrderController extends Controller
 
     public function downloadDocument(Order $order, OrderDocument $document): BinaryFileResponse
     {
-        $this->authorizeOrder($order);
-        abort_unless($document->order_id === $order->id, 404);
+        $this->authorizeOrderDocument($order, $document);
 
         return $this->uploads->download($document->path, $document->original_name);
     }
@@ -222,5 +216,12 @@ class OrderController extends Controller
     private function authorizeOrder(Order $order): void
     {
         CompanyFilter::authorizeCompanyAccess($order->company_id);
+    }
+
+    private function authorizeOrderDocument(Order $order, OrderDocument $document): void
+    {
+        $this->authorizeOrder($order);
+        abort_unless($document->order_id === $order->id, 404);
+        abort_unless($document->isVisibleToClient(), 403);
     }
 }

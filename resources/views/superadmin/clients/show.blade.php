@@ -24,6 +24,7 @@
             <p class="form-field-hint" style="margin:0 0 1rem;">
                 Suspending a company signs out all users and blocks new logins until access is restored.
             </p>
+            @perm('clients.manage')
             @if($company->status === \App\Enums\CompanyStatus::Active)
                 <form method="POST" action="{{ route('superadmin.clients.deactivate', $company) }}">
                     @csrf
@@ -37,6 +38,9 @@
             @else
                 <p class="cell-muted">Company is {{ str_replace('_', ' ', $company->status->value) }}. Suspend is only available for active companies.</p>
             @endif
+            @else
+                <p class="cell-muted">You do not have permission to manage company access.</p>
+            @endperm
         </div>
 
         <div class="listing-panel">
@@ -56,7 +60,7 @@
                     </thead>
                     <tbody>
                     @forelse($company->users as $clientUser)
-                        @php $canManage = in_array($clientUser->id, $manageableUserIds, true); @endphp
+                        @php $canManage = in_array($clientUser->id, $manageableUserIds, true) && auth()->user()->hasPermission('clients.manage'); @endphp
                         <tr>
                             <td>
                                 <div class="analyst-cell">

@@ -27,10 +27,10 @@
                     <td>{{ $case->company->name }}</td>
                     <td>@include('partials.case-client-cell', ['case' => $case])</td>
                     <td><span class="cell-date">{{ $case->order?->confirmed_at?->format('d M Y') ?? '—' }}</span></td>
-                    <td><span class="cell-date">{{ $case->order?->due_date?->format('d M Y') ?? 'TBD' }}</span></td>
+                    <td><span class="cell-date">{{ $case->portalDueDateLabel() }}</span></td>
                     <td>
                         @if($case->stage)
-                            <span class="stage-pill" style="--stage-color: {{ $case->stage->color }}">{{ $case->stage->name }}</span>
+                            <span class="stage-pill" style="--stage-color: {{ $case->visibleStageColor() }}">{{ $case->visibleStageLabel() }}</span>
                         @else
                             <span class="cell-muted">—</span>
                         @endif

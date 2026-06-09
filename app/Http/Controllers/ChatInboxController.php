@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\Permission;
 use App\Enums\UserRole;
 use App\Models\CaseFile;
 use App\Models\Message;
 use App\Support\CaseMessageVisibility;
-use App\Support\CompanyFilter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -15,7 +15,7 @@ class ChatInboxController extends Controller
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
-        $this->ensureChatInboxRole($user);
+        $this->ensureChatPermission($user);
 
         $messages = $this->inboxQuery($user)
             ->whereNull('read_at')
@@ -34,7 +34,7 @@ class ChatInboxController extends Controller
     public function markAllRead(Request $request): JsonResponse
     {
         $user = $request->user();
-        $this->ensureChatInboxRole($user);
+        $this->ensureChatPermission($user);
 
         $this->inboxQuery($user)->whereNull('read_at')->update(['read_at' => now()]);
 
@@ -44,16 +44,7 @@ class ChatInboxController extends Controller
     private function inboxQuery($user)
     {
         $query = Message::query();
-
-        if ($user->hasRole(UserRole::Client)) {
-            CaseMessageVisibility::applyClientInbox($query, $user);
-        } elseif ($user->isEmployee()) {
-            $query
-                ->where('recipient_id', $user->id)
-                ->whereHas('caseFile', fn ($q) => $q->forAnalyst($user->id));
-        } else {
-            $query->where('recipient_id', $user->id);
-        }
+        CaseMessageVisibility::applyCaseThreadInbox($query, $user);
 
         return $query;
     }
@@ -73,6 +64,7 @@ class ChatInboxController extends Controller
             'id' => $message->id,
             'case_id' => $message->case_id,
             'case_reference' => $case?->reference,
+            'channel' => $message->channel?->value,
             'sender_name' => $sender->name,
             'sender_avatar' => $sender->avatarUrl(),
             'sender_initial' => mb_strtoupper(mb_substr($sender->name, 0, 1)),
@@ -92,15 +84,10 @@ class ChatInboxController extends Controller
         return \App\Support\PortalRoute::caseShowRoute($user, $case);
     }
 
-    private function ensureChatInboxRole($user): void
+    private function ensureChatPermission($user): void
     {
-        if ($user->hasRole(UserRole::Client)
-            || $user->isEmployee()
-            || $user->hasRole(UserRole::Admin)
-            || $user->hasRole(UserRole::SuperAdmin)) {
-            return;
+        if (! $user->hasPermission(Permission::ChatClient)) {
+            abort(403, 'You do not have permission to use case chat.');
         }
-
-        abort(403);
     }
 }

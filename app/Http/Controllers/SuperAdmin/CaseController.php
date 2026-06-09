@@ -36,16 +36,17 @@ class CaseController extends Controller
                 CaseFile::clientContactWith()
             ))
             ->tap(fn ($query) => CaseListFilters::apply($query, $request))
-            ->latest()
             ->paginate(config('portal.per_page'))
             ->withQueryString();
 
         $stageOptions = CaseListFilters::stageOptions();
+        $packageOptions = CaseListFilters::packageOptions();
         $companyOptions = CompanyFilter::optionsForUser($request->user());
 
         return view('superadmin.cases.index', [
             'cases' => $cases,
             'stageOptions' => $stageOptions,
+            'packageOptions' => $packageOptions,
             'companyOptions' => $companyOptions,
             'enableCaseLinking' => true,
             'linkCasesRoute' => route('superadmin.cases.link'),
@@ -69,7 +70,7 @@ class CaseController extends Controller
         $this->caseDocuments->syncFromOrder($case);
 
         $case->load(array_merge(
-            ['company', 'order.package', 'stage', 'assignee', 'analysts', 'stageHistories.stage', 'stageHistories.user', 'messages.sender', 'documents.uploader', 'latestReport'],
+            ['company', 'order.package', 'stage', 'assignee', 'analysts', 'stageHistories.stage', 'stageHistories.user', 'messages.sender', 'documents.uploader', 'comments.user', 'latestReport', 'report.uploader'],
             CaseFile::clientContactWith()
         ));
 
@@ -91,16 +92,39 @@ class CaseController extends Controller
         try {
             $memberIdsByType = $this->teamAssignment->validateTeamPayload($request->input('team', []));
         } catch (\Illuminate\Validation\ValidationException $e) {
-            return Toast::back($e->validator->errors()->first() ?? 'Assign Analyst, QA, and FQA for this case.');
+            return Toast::back(
+                $e->validator->errors()->first() ?? 'Analyst is required.',
+                'error',
+                'Required'
+            );
         }
 
-        $team = $this->teamAssignment->assign($case, $memberIdsByType, (int) auth()->id());
+        try {
+            $dueDatesByRole = $this->teamAssignment->validateDueDates(
+                $memberIdsByType,
+                (array) $request->input('due_dates', [])
+            );
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return Toast::back(
+                $e->validator->errors()->first() ?? 'Set a due date for each assigned role.',
+                'error',
+                'Required'
+            );
+        }
+
+        $team = $this->teamAssignment->assign(
+            $case,
+            $memberIdsByType,
+            (int) auth()->id(),
+            $dueDatesByRole,
+        );
         $case->loadMissing('assignee');
         $leadId = (int) ($case->assignee?->id ?? 0);
 
         $this->audit->log('case.assigned', $case, [
             'assigned_to' => $leadId,
             'analyst_ids' => $team->pluck('id')->all(),
+            'team_due_dates' => $case->teamDueDatesByRole(),
             'team_roles' => $team->mapWithKeys(fn (User $user) => [
                 $user->role->value => $user->name,
             ])->all(),

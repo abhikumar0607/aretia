@@ -5,8 +5,7 @@
 @section('content')
 @php
     $caseFile = $order->caseFile;
-    $canCaseChat = $caseFile && $caseFile->isChatAvailableFor(auth()->user());
-    $orderChatPartner = $canCaseChat ? $caseFile->chatPartnerFor(auth()->user()) : null;
+    $canCaseChat = auth()->user()->hasPermission('chat.client') && $caseFile && $caseFile->canUseCaseChat(auth()->user());
 @endphp
 @include('partials.order-detail', [
     'order' => $order,
@@ -15,7 +14,7 @@
     'backLabel' => 'My orders',
     'caseRoute' => $caseFile ? route('client.cases.show', $caseFile) : null,
     'enableCaseChat' => $canCaseChat,
-    'caseChatLabel' => $orderChatPartner ? 'Chat with '.$orderChatPartner->name : null,
+    'caseChatLabel' => $canCaseChat ? 'Case chat' : null,
     'documentPreviewRoute' => 'client.orders.documents.preview',
     'documentDownloadRoute' => 'client.orders.documents.download',
     'documentUploadRoute' => route('client.orders.documents.store', $order),

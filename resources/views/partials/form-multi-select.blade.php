@@ -3,8 +3,9 @@
     $selected = array_map('intval', $selected ?? []);
     $placeholder = $placeholder ?? 'Select…';
     $min = $min ?? 1;
+    $requiredMessage = $requiredMessage ?? 'Please select at least one option.';
 @endphp
-<div class="ms-wrap" data-multi-select data-min="{{ $min }}">
+<div class="ms-wrap" data-multi-select data-min="{{ $min }}" data-required-message="{{ $requiredMessage }}">
     @if(!empty($label))
         <span class="form-label ms-label">{{ $label }}</span>
     @endif

@@ -107,6 +107,11 @@ class DocumentController extends Controller
         if ($case instanceof CaseFile) {
             $this->authorizeCaseAccess($case);
 
+            $user = auth()->user();
+            if ($user->hasRole(UserRole::Client) && ! $document->isVisibleToClient()) {
+                abort(403);
+            }
+
             return;
         }
 

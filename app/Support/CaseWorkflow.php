@@ -15,6 +15,86 @@ class CaseWorkflow
     public const SLUG_SENT_TO_CLIENT = 'sent-to-client';
     public const SLUG_CANCELLED = 'cancelled';
 
+    public const CLIENT_STAGE_ORDER_CONFIRMED = 'order-confirmed';
+
+    public const CLIENT_STAGE_RESEARCH_STARTED = 'research-started';
+
+    public const CLIENT_STAGE_SENT_TO_CLIENT = 'sent-to-client';
+
+    public const CLIENT_STAGE_CANCELLED = 'cancelled';
+
+    /**
+     * @return list<string>
+     */
+    public static function clientStageSlugs(): array
+    {
+        return [
+            self::CLIENT_STAGE_ORDER_CONFIRMED,
+            self::CLIENT_STAGE_RESEARCH_STARTED,
+            self::CLIENT_STAGE_SENT_TO_CLIENT,
+            self::CLIENT_STAGE_CANCELLED,
+        ];
+    }
+
+    /** @return array<string, string> */
+    public static function clientStageOptions(): array
+    {
+        return [
+            self::CLIENT_STAGE_ORDER_CONFIRMED => 'Order confirmed',
+            self::CLIENT_STAGE_RESEARCH_STARTED => 'Research started',
+            self::CLIENT_STAGE_SENT_TO_CLIENT => 'Sent to client',
+            self::CLIENT_STAGE_CANCELLED => 'Cancelled',
+        ];
+    }
+
+    public static function clientStageSlug(?string $internalSlug): string
+    {
+        $internalSlug = self::normalizeCurrentSlug($internalSlug);
+
+        return match ($internalSlug) {
+            self::SLUG_SENT_TO_CLIENT => self::CLIENT_STAGE_SENT_TO_CLIENT,
+            self::SLUG_CANCELLED => self::CLIENT_STAGE_CANCELLED,
+            self::SLUG_ASSIGNED => self::CLIENT_STAGE_ORDER_CONFIRMED,
+            default => self::CLIENT_STAGE_RESEARCH_STARTED,
+        };
+    }
+
+    public static function clientStageLabel(?string $internalSlug): string
+    {
+        return self::clientStageOptions()[self::clientStageSlug($internalSlug)] ?? 'Order confirmed';
+    }
+
+    public static function clientStageColor(?string $internalSlug): string
+    {
+        return match (self::clientStageSlug($internalSlug)) {
+            self::CLIENT_STAGE_ORDER_CONFIRMED => '#6366f1',
+            self::CLIENT_STAGE_RESEARCH_STARTED => '#3b82f6',
+            self::CLIENT_STAGE_SENT_TO_CLIENT => '#059669',
+            self::CLIENT_STAGE_CANCELLED => '#dc2626',
+            default => '#6366f1',
+        };
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function internalSlugsForClientStage(string $clientStageSlug): array
+    {
+        return match ($clientStageSlug) {
+            self::CLIENT_STAGE_ORDER_CONFIRMED => [self::SLUG_ASSIGNED],
+            self::CLIENT_STAGE_RESEARCH_STARTED => [
+                self::SLUG_RESEARCH_STARTED,
+                self::SLUG_RESEARCH_DONE,
+                self::SLUG_QA_STARTED,
+                self::SLUG_QA_DONE,
+                self::SLUG_FQA_STARTED,
+            ],
+            self::CLIENT_STAGE_SENT_TO_CLIENT => [self::SLUG_SENT_TO_CLIENT],
+            self::CLIENT_STAGE_CANCELLED => [self::SLUG_CANCELLED],
+            default => [],
+        };
+    }
+
     /**
      * @return list<string>
      */

@@ -52,12 +52,15 @@ class CaseTeamAssignedNotification extends Notification implements ShouldBroadca
                 'accent' => 'info',
                 'title' => 'Hello, '.$notifiable->name,
                 'intro' => 'You have been assigned to case <strong>'.$this->case->reference.'</strong> as <strong>'.$roleLabel.'</strong>.'.$assignerNote.$leadNote,
-                'highlights' => [
+                'highlights' => array_filter([
                     'Case' => e($this->case->reference),
                     'Company' => e($this->case->company->name),
                     'Package' => e($this->case->order->package->name),
                     'Your role' => e($roleLabel),
-                ],
+                    'Your due date' => ($dueDate = $this->case->employeeDueDateFor($notifiable))
+                        ? e($dueDate->format('d M Y'))
+                        : null,
+                ]),
                 'cta_url' => PortalRoute::caseShowRoute($notifiable, $this->case),
                 'cta_label' => 'Open case',
                 'outro' => 'Sign in to the portal to review documents, update stages, and collaborate with your team.',

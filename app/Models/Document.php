@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasUploaderAttribution;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class Document extends Model
 {
+    use HasUploaderAttribution;
     protected $fillable = [
         'documentable_type', 'documentable_id', 'uploaded_by',
         'type', 'category', 'original_name', 'path',

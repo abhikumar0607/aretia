@@ -23,7 +23,8 @@ class OrderApprovalService
 
     public function approve(Order $order, User $approver): CaseFile
     {
-        $this->assertPending($order);
+        $previousStatus = $order->status;
+        $this->assertApprovable($order);
 
         if ($order->caseFile) {
             throw ValidationException::withMessages([
@@ -44,6 +45,7 @@ class OrderApprovalService
         $order->update([
             'status' => OrderStatus::Confirmed,
             'confirmed_at' => now(),
+            'rejection_reason' => null,
         ]);
 
         $order->load('documents');
@@ -53,6 +55,7 @@ class OrderApprovalService
             'case_id' => $case->id,
             'case_reference' => $case->reference,
             'approved_by' => $approver->id,
+            'previous_status' => $previousStatus->value,
         ]);
 
         $order->load('user');
@@ -69,7 +72,10 @@ class OrderApprovalService
     {
         $this->assertPending($order);
 
-        $order->update(['status' => OrderStatus::Rejected]);
+        $order->update([
+            'status' => OrderStatus::Rejected,
+            'rejection_reason' => trim($reason),
+        ]);
 
         $this->audit->log('order.rejected', $order, [
             'rejected_by' => $approver->id,
@@ -84,7 +90,16 @@ class OrderApprovalService
     {
         if ($order->status !== OrderStatus::Pending) {
             throw ValidationException::withMessages([
-                'order' => 'Only pending orders can be approved or rejected.',
+                'order' => 'Only pending orders can be rejected.',
+            ]);
+        }
+    }
+
+    private function assertApprovable(Order $order): void
+    {
+        if (! in_array($order->status, [OrderStatus::Pending, OrderStatus::Rejected], true)) {
+            throw ValidationException::withMessages([
+                'order' => 'Only pending or rejected orders can be approved.',
             ]);
         }
     }

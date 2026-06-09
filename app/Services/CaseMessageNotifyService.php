@@ -2,17 +2,16 @@
 
 namespace App\Services;
 
-use App\Enums\UserRole;
-use App\Models\CaseFile;
 use App\Models\Message;
 use App\Models\User;
 use App\Notifications\CaseMessageNotification;
-use App\Support\CompanyFilter;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Notification;
 
 class CaseMessageNotifyService
 {
+    public function __construct(private CaseChatService $caseChat) {}
+
     /** @return Collection<int, User> */
     public function notificationRecipients(Message $message): Collection
     {
@@ -24,11 +23,7 @@ class CaseMessageNotifyService
             return collect();
         }
 
-        if ($sender->hasRole(UserRole::Client)) {
-            return $this->caseTeamRecipients($case, (int) $sender->id);
-        }
-
-        return CompanyFilter::clientUsersForCompany((int) $case->company_id, (int) $sender->id);
+        return $this->caseChat->threadNotificationRecipients($case, $sender);
     }
 
     /** @return list<int> */
@@ -52,21 +47,5 @@ class CaseMessageNotifyService
         $message->loadMissing(['sender', 'caseFile']);
 
         Notification::send($recipients, new CaseMessageNotification($message, $message->caseFile));
-    }
-
-    /** @return Collection<int, User> */
-    private function caseTeamRecipients(CaseFile $case, int $exceptUserId): Collection
-    {
-        $case->loadMissing(['analysts', 'assignee']);
-        $recipients = $case->analysts;
-
-        if ($case->assignee && ! $recipients->contains('id', $case->assignee->id)) {
-            $recipients = $recipients->push($case->assignee);
-        }
-
-        return $recipients
-            ->filter(fn (User $user) => (int) $user->id !== $exceptUserId)
-            ->unique('id')
-            ->values();
     }
 }

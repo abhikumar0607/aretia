@@ -12,6 +12,7 @@
         <p>Review client submissions and manage orders across the platform.</p>
     </div>
     <div class="listing-hero-actions">
+        @perm('orders.create')
         <a href="{{ route('superadmin.orders.create') }}" class="btn btn-primary">
             <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
             New order
@@ -20,6 +21,7 @@
             <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
             Bulk import
         </a>
+        @endperm
         @if($stats['pending'] > 0)
             <span class="pill pill-package">{{ $stats['pending'] }} awaiting approval</span>
         @endif
@@ -37,6 +39,11 @@
                 'options' => $companyOptions,
             ],
             [
+                'name' => 'package',
+                'label' => 'All packages',
+                'options' => $packageOptions,
+            ],
+            [
                 'name' => 'status',
                 'label' => 'All statuses',
                 'options' => $statusOptions,
@@ -50,6 +57,7 @@
             <thead>
                 <tr>
                     <th>Reference</th>
+                    <th>Subject</th>
                     <th>Company</th>
                     <th>Package</th>
                     <th>Status</th>
@@ -65,6 +73,7 @@
                             <span class="cell-ref">{{ $order->reference }}</span>
                         </a>
                     </td>
+                    <td>@include('partials.order-subject-cell', ['order' => $order])</td>
                     <td>{{ $order->company->name }}</td>
                     <td><span class="pill pill-package">{{ $order->package->name }}</span></td>
                     <td><span class="badge {{ $order->status->badgeClass() }}">{{ $order->status->label() }}</span></td>
@@ -77,7 +86,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="6">
+                    <td colspan="7">
                         <div class="empty-state">
                             @if(\App\Support\OrderListFilters::hasActiveFilters(request()))
                                 <h3>No results</h3>

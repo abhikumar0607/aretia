@@ -21,8 +21,6 @@
 
     'statCards' => [
 
-        ['label' => 'Confirmed orders', 'value' => $stats['confirmed_orders']],
-
         ['label' => 'Your cases', 'value' => $stats['cases'], 'accent' => true],
 
         ['label' => 'Reports delivered', 'value' => $stats['reports']],

@@ -14,7 +14,7 @@ class Order extends Model
     protected $fillable = [
         'reference', 'company_id', 'user_id', 'service_package_id',
         'status', 'subject_type', 'subject_name', 'subject_details',
-        'custom_request', 'due_date', 'confirmed_at',
+        'custom_request', 'due_date', 'confirmed_at', 'rejection_reason',
     ];
 
     protected function casts(): array
@@ -44,7 +44,30 @@ class Order extends Model
 
     public function documents(): HasMany
     {
-        return $this->hasMany(OrderDocument::class);
+        return $this->hasMany(OrderDocument::class)->latest();
+    }
+
+    public function documentsForViewer(?User $viewer = null): \Illuminate\Support\Collection
+    {
+        $viewer ??= auth()->user();
+
+        $documents = $this->relationLoaded('documents')
+            ? $this->documents
+            : $this->documents()->with('uploader')->get();
+
+        if ($documents->isNotEmpty() && ! $documents->first()->relationLoaded('uploader')) {
+            $documents->load('uploader');
+        }
+
+        $documents = $documents->sortByDesc('created_at')->values();
+
+        if ($viewer?->hasRole(\App\Enums\UserRole::Client)) {
+            return $documents
+                ->filter(fn (OrderDocument $doc) => $doc->isVisibleToClient())
+                ->values();
+        }
+
+        return $documents;
     }
 
     public function caseFile(): HasOne
@@ -55,5 +78,16 @@ class Order extends Model
     public static function generateReference(): string
     {
         return 'ORD-'.strtoupper(uniqid());
+    }
+
+    public function displayRejectionReason(): ?string
+    {
+        if ($this->status !== OrderStatus::Rejected) {
+            return null;
+        }
+
+        $reason = trim((string) ($this->rejection_reason ?? ''));
+
+        return $reason !== '' ? $reason : null;
     }
 }

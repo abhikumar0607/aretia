@@ -1,4 +1,22 @@
 (function () {
+    function openCasesUrl(url) {
+        if (url) {
+            window.open(url, '_blank', 'noopener,noreferrer');
+        }
+    }
+
+    document.querySelectorAll('.dashboard-chart-breakdown-item--linked[data-cases-url]').forEach(function (row) {
+        row.addEventListener('click', function () {
+            openCasesUrl(row.getAttribute('data-cases-url'));
+        });
+        row.addEventListener('keydown', function (event) {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                openCasesUrl(row.getAttribute('data-cases-url'));
+            }
+        });
+    });
+
     if (typeof Chart === 'undefined') return;
 
     Chart.defaults.font.family = 'Inter, system-ui, sans-serif';
@@ -101,6 +119,28 @@
                     ticks: { display: false },
                     pointLabels: { display: false },
                 },
+            };
+        }
+
+        var stageLinks = [];
+        if (canvas.dataset.stageLinks) {
+            try {
+                stageLinks = JSON.parse(canvas.dataset.stageLinks || '[]');
+            } catch (e) {
+                stageLinks = [];
+            }
+        }
+
+        if (stageLinks.length) {
+            options.onHover = function (event, elements) {
+                event.native.target.style.cursor = elements.length ? 'pointer' : 'default';
+            };
+            options.onClick = function (event, elements) {
+                if (!elements.length) return;
+                var url = stageLinks[elements[0].index];
+                if (url) {
+                    window.open(url, '_blank', 'noopener,noreferrer');
+                }
             };
         }
 

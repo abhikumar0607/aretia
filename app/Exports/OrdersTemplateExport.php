@@ -45,10 +45,10 @@ class OrdersTemplateExport implements FromArray, WithHeadings, WithStyles
                 [
                     'client@aretia.test',
                     'custom',
-                    '',
-                    '',
-                    '',
-                    '',
+                    '2026-07-01',
+                    'entity',
+                    'Offshore Holdings XYZ',
+                    'Registration no. AE-98765, BVI',
                     'Full due diligence on offshore entity XYZ',
                 ],
             ];
@@ -65,10 +65,10 @@ class OrdersTemplateExport implements FromArray, WithHeadings, WithStyles
             ],
             [
                 'custom',
-                '',
-                '',
-                '',
-                '',
+                '2026-07-15',
+                'entity',
+                'Project Alpha Partners',
+                'Multi-jurisdiction partnership structure',
                 'Investigate partnership structure for Project Alpha',
             ],
         ];

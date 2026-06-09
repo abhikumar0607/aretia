@@ -24,6 +24,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    window.closePortalModal = (idOrElement) => {
+        closeModal(typeof idOrElement === 'string' ? getModal(idOrElement) : idOrElement);
+    };
+
     document.querySelectorAll('[data-modal-open]').forEach((trigger) => {
         trigger.addEventListener('click', (e) => {
             e.preventDefault();
@@ -55,11 +59,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const formId = btn.getAttribute('data-modal-submit');
             const form = formId ? document.getElementById(formId) : null;
-            if (form) {
-                form.requestSubmit();
-            }
-            const modalId = btn.getAttribute('data-modal-close-after');
-            if (modalId) closeModal(getModal(modalId));
+            if (!form) return;
+
+            btn.disabled = true;
+            btn.classList.add('is-submitting');
+            btn.setAttribute('aria-busy', 'true');
+
+            form.requestSubmit();
         });
     });
 });

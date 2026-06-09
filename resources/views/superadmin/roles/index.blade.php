@@ -6,20 +6,81 @@
 <header class="listing-hero">
     <div class="listing-hero-text">
         <h1>Permissions &amp; Roles</h1>
-        <p>Manage role-based access and granular permissions across the portal.</p>
     </div>
 </header>
 
-<div class="listing-panel">
-    <div class="empty-state">
-        <div class="empty-state-icon" aria-hidden="true">
-            <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 11c0-1.657 1.343-3 3-3s3 1.343 3 3v2m-6 0h6m-9 8h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"/>
-            </svg>
+<div class="perm-matrix-card card">
+    <form method="POST" action="{{ route('superadmin.roles.update') }}" class="perm-matrix-form">
+        @csrf
+
+        <div class="perm-matrix-scroll">
+            <table class="perm-matrix-table">
+                <thead>
+                    <tr>
+                        <th class="perm-matrix-th perm-matrix-th--section">Section</th>
+                        <th class="perm-matrix-th perm-matrix-th--permission">Permission</th>
+                        @foreach($displayRoles as $role)
+                            <th class="perm-matrix-th perm-matrix-th--role @if($role->value === 'admin') perm-matrix-th--admin @elseif($role->value === 'superadmin') perm-matrix-th--super @endif">
+                                {{ $role->label() }}
+                            </th>
+                        @endforeach
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($groupedPermissions as $section => $permissions)
+                        @foreach($permissions as $index => $permission)
+                            <tr class="perm-matrix-row">
+                                @if($index === 0)
+                                    <td class="perm-matrix-section" rowspan="{{ count($permissions) }}">
+                                        {{ $section }}
+                                    </td>
+                                @endif
+                                <td class="perm-matrix-permission">
+                                    <strong>{{ $permission->label() }}</strong>
+                                    <span class="perm-matrix-permission-desc">{{ $permission->description() }}</span>
+                                </td>
+                                @foreach($displayRoles as $role)
+                                    @php
+                                        $isStaff = in_array($role, $staffRoles, true);
+                                        $checked = $grants[$permission->value][$role->value] ?? false;
+                                        $editable = $permission->isUniversal() || $isStaff;
+                                    @endphp
+                                    <td class="perm-matrix-cell @if($role->value === 'admin') perm-matrix-cell--admin @elseif($role->value === 'superadmin') perm-matrix-cell--super @endif">
+                                        @include('partials.permission-matrix-role-cell', [
+                                            'editable' => $editable,
+                                            'name' => $editable ? 'permissions['.$permission->value.']['.$role->value.']' : null,
+                                            'checked' => $editable ? $checked : false,
+                                        ])
+                                    </td>
+                                @endforeach
+                            </tr>
+                        @endforeach
+                    @endforeach
+                </tbody>
+            </table>
         </div>
-        <h3>Coming soon</h3>
-        <p>This section will let Super Admins define custom roles, scope permissions per module, and assign access policies.</p>
-        <p class="empty-state-sub">It is visible only to Super Admin and is reserved for future configuration.</p>
-    </div>
+
+        <div class="perm-matrix-footer">
+            <button type="submit" class="btn btn-primary">Save permissions</button>
+        </div>
+    </form>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.perm-matrix-check input[type="checkbox"]').forEach((input) => {
+        const label = input.closest('.perm-matrix-check')?.querySelector('.perm-matrix-check-label');
+        const sync = () => {
+            if (label) {
+                label.textContent = input.checked ? 'Yes' : 'No';
+                label.className = 'perm-matrix-check-label ' + (input.checked ? 'perm-yes' : 'perm-no');
+            }
+        };
+        input.addEventListener('change', sync);
+        sync();
+    });
+});
+</script>
+@endpush

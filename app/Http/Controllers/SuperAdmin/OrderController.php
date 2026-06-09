@@ -14,6 +14,7 @@ use App\Services\OrderCreationService;
 use App\Services\OrderDueDateService;
 use App\Services\PublicUploadService;
 use App\Support\CompanyFilter;
+use App\Support\OrderDuplicateSubjects;
 use App\Support\OrderListFilters;
 use App\Support\Toast;
 use Illuminate\Http\JsonResponse;
@@ -33,21 +34,14 @@ class OrderController extends Controller
 
     public function index(Request $request): View
     {
-        $search = trim((string) $request->input('q'));
-
         $orders = Order::query()
             ->with(['company', 'package', 'user', 'caseFile'])
-            ->when($search !== '', function ($query) use ($search) {
-                $query->where(function ($q) use ($search) {
-                    $q->where('reference', 'like', "%{$search}%")
-                        ->orWhere('subject_name', 'like', "%{$search}%")
-                        ->orWhereHas('company', fn ($c) => $c->where('name', 'like', "%{$search}%"));
-                });
-            })
             ->tap(fn ($query) => OrderListFilters::apply($query, $request))
             ->latest()
             ->paginate(config('portal.per_page'))
             ->withQueryString();
+
+        OrderDuplicateSubjects::markOnCollection($orders);
 
         $stats = [
             'pending' => Order::where('status', OrderStatus::Pending)->count(),
@@ -55,9 +49,10 @@ class OrderController extends Controller
         ];
 
         $statusOptions = OrderListFilters::statusOptions();
+        $packageOptions = OrderListFilters::packageOptions();
         $companyOptions = CompanyFilter::optionsForUser($request->user());
 
-        return view('superadmin.orders.index', compact('orders', 'stats', 'search', 'statusOptions', 'companyOptions'));
+        return view('superadmin.orders.index', compact('orders', 'stats', 'statusOptions', 'packageOptions', 'companyOptions'));
     }
 
     public function create(Request $request): View
@@ -135,7 +130,7 @@ class OrderController extends Controller
 
     public function show(Order $order): View
     {
-        $order->load(['company', 'package', 'user', 'documents', 'caseFile.stage', 'caseFile.assignee', 'caseFile.analysts']);
+        $order->load(['company', 'package', 'user', 'documents.uploader', 'caseFile.stage', 'caseFile.assignee', 'caseFile.analysts']);
 
         return view('superadmin.orders.show', compact('order'));
     }

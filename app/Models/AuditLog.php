@@ -44,6 +44,7 @@ class AuditLog extends Model
             'case.linked' => 'Cases linked as related',
             'case.unlinked' => 'Case removed from related group',
             'case.stage_updated' => 'Case stage updated',
+            'case.comment_added' => 'Internal case comment added',
             'document.uploaded' => 'Document uploaded',
             'document.downloaded' => 'Document downloaded',
             'message.sent' => 'Message sent',
@@ -172,6 +173,12 @@ class AuditLog extends Model
                 }
                 break;
 
+            case 'case.comment_added':
+                if (! empty($props['author'])) {
+                    $chips[] = ['label' => 'By', 'value' => $props['author']];
+                }
+                break;
+
             case 'onboarding.rejected':
                 if (! empty($props['reason'])) {
                     $chips[] = ['label' => 'Reason', 'value' => $props['reason']];
@@ -210,6 +217,12 @@ class AuditLog extends Model
                     ?? ($props['updated_by'] ?? null ? User::find($props['updated_by'])?->name : null);
                 if ($updater) {
                     $chips[] = ['label' => 'By', 'value' => $updater];
+                }
+                break;
+
+            case 'order.rejected':
+                if (! empty($props['reason'])) {
+                    $chips[] = ['label' => 'Reason', 'value' => $props['reason']];
                 }
                 break;
 

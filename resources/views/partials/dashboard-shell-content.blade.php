@@ -5,7 +5,7 @@
             <p>{{ $description }}</p>
         @endif
         @if(!empty($dashboardFilters))
-            <p class="dashboard-header-filter-note">Charts and totals below reflect your selected date range.</p>
+            <p class="dashboard-header-filter-note">Charts and totals below reflect your selected filters.</p>
         @endif
     </div>
 </header>

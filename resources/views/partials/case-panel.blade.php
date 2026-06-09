@@ -1,3 +1,10 @@
+@php
+    $visibleDocuments = $case->documentsForViewer();
+    $documentTotal = $visibleDocuments->count();
+    $paginatedDocuments = \App\Support\CollectionPaginator::paginate($visibleDocuments, pageName: 'docs_page');
+    $isClientViewer = auth()->user()?->hasRole(\App\Enums\UserRole::Client);
+    $stageHistories = $isClientViewer ? $case->clientVisibleStageHistories() : $case->stageHistories;
+@endphp
 <div class="case-workspace-grid case-workspace-grid-single">
     <section class="case-panel-card card">
         <div class="case-panel-head">
@@ -5,24 +12,11 @@
                 <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                 Documents
             </h3>
-            <span class="pill pill-muted">{{ $case->documents->count() }} file(s)</span>
+            <span class="pill pill-muted">{{ $documentTotal }} file(s)</span>
         </div>
 
-        @if($case->documents->count())
-            <div class="detail-doc-list case-doc-list">
-                @foreach($case->documents as $doc)
-                    <div class="detail-doc-item">
-                        <span class="file-icon file-icon-pdf">
-                            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                        </span>
-                        <div class="detail-doc-body">
-                            <strong>{{ $doc->original_name }}</strong>
-                            <span>{{ $doc->category ?? 'general' }} &middot; {{ $doc->created_at->format('d M Y') }}</span>
-                        </div>
-                        @include('partials.document-actions', ['doc' => $doc])
-                    </div>
-                @endforeach
-            </div>
+        @if($documentTotal)
+            @include('partials.document-table', ['documents' => $paginatedDocuments])
         @else
             <p class="case-empty-hint">No documents uploaded yet.</p>
         @endif
@@ -66,14 +60,18 @@
                 </tr>
             </thead>
             <tbody>
-            @forelse($case->stageHistories as $history)
+            @forelse($stageHistories as $history)
                 <tr>
                     <td>
-                        <span class="stage-pill" style="--stage-color: {{ $history->stage->color }}">{{ $history->stage->name }}</span>
+                        @if($isClientViewer)
+                            <span class="stage-pill" style="--stage-color: {{ $history->color }}">{{ $history->label }}</span>
+                        @else
+                            <span class="stage-pill" style="--stage-color: {{ $history->stage->color }}">{{ $history->stage->name }}</span>
+                        @endif
                     </td>
-                    <td>{{ $history->user->name }}</td>
-                    <td><span class="cell-muted">{{ $history->notes ?? '—' }}</span></td>
-                    <td><span class="cell-date">{{ $history->created_at->format('d M Y H:i') }}</span></td>
+                    <td>{{ $isClientViewer ? 'Aretia' : $history->user->name }}</td>
+                    <td><span class="cell-muted">{{ $isClientViewer ? '—' : ($history->notes ?? '—') }}</span></td>
+                    <td><span class="cell-date">{{ ($isClientViewer ? $history->updated_at : $history->created_at)->format('d M Y H:i') }}</span></td>
                 </tr>
             @empty
                 <tr>

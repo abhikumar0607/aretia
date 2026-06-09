@@ -1,7 +1,7 @@
 @php
     use App\Enums\UserRole;
 
-    $stageColor = $case->stage?->color ?? '#6366f1';
+    $stageColor = $case->visibleStageColor();
     $viewer = auth()->user();
     $clientContact = $viewer && (
         $viewer->hasRole(UserRole::Admin)
@@ -23,7 +23,8 @@
 <header class="detail-hero case-hero">
     <div class="detail-hero-main">
         <span class="detail-eyebrow">Case</span>
-        <h1>{{ $case->reference }}</h1>
+        <h1 class="case-hero-ref">{{ $case->reference }}</h1>
+        <p class="case-hero-subject">{{ $case->order->subject_name ?? 'Custom' }}</p>
         <p class="detail-subtitle">
             {{ $case->company->name }}
             @if($clientContact)
@@ -34,8 +35,8 @@
             &middot; {{ $case->order->package->name }}
         </p>
         <div class="detail-badges">
-            @if($case->stage)
-                <span class="stage-pill" style="--stage-color: {{ $stageColor }}">{{ $case->stage->name }}</span>
+            @if($case->stage || $viewer?->hasRole(\App\Enums\UserRole::Client))
+                <span class="stage-pill" style="--stage-color: {{ $stageColor }}">{{ $case->visibleStageLabel() }}</span>
             @endif
             @if($clientContact)
                 <span class="pill pill-client">Client: {{ $clientContact->name }}</span>
@@ -111,11 +112,18 @@
         </div>
         <div class="case-detail-item">
             <span class="case-detail-label">Due date</span>
-            <span class="case-detail-value">{{ $case->order->due_date?->format('d M Y') ?? 'TBD' }}</span>
+            <span class="case-detail-value">{{ $case->portalDueDateLabel() }}</span>
         </div>
-        <div class="case-detail-item">
-            <span class="case-detail-label">Subject</span>
-            <span class="case-detail-value">{{ $case->order->subject_name ?? 'Custom' }}</span>
-        </div>
+        @if(auth()->user()?->isEmployee() === false)
+            @foreach(\App\Enums\EmployeeType::cases() as $employeeType)
+                @php $roleDueDate = $case->teamDueDatesByRole()[$employeeType->value] ?? null; @endphp
+                @if($roleDueDate)
+                    <div class="case-detail-item">
+                        <span class="case-detail-label">{{ $employeeType->label() }} due date</span>
+                        <span class="case-detail-value">{{ \Illuminate\Support\Carbon::parse($roleDueDate)->format('d M Y') }}</span>
+                    </div>
+                @endif
+            @endforeach
+        @endif
     </div>
 </div>

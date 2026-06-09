@@ -1,5 +1,6 @@
 @if(!empty($charts))
 @php
+    $casesIndexRoute = auth()->check() ? \App\Support\PortalRoute::route('cases.index') : null;
     $chartIcons = [
         'onboarding' => 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z',
         'orders' => 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2',
@@ -64,12 +65,32 @@
                         @if(array_sum($canvasValues) > 0)
                         <div class="dashboard-chart-visual dashboard-chart-visual--{{ $layout }}">
                             <div class="dashboard-chart-canvas-wrap">
+                                @php
+                                    $canvasStageLinks = [];
+                                    if (($chart['key'] ?? '') === 'cases-stage' && $casesIndexRoute) {
+                                        foreach ($chart['labels'] as $sliceIndex => $sliceLabel) {
+                                            if (($chart['values'][$sliceIndex] ?? 0) < 1) {
+                                                continue;
+                                            }
+                                            $stageFilter = $chart['client_stage_slugs'][$sliceIndex]
+                                                ?? $chart['stage_ids'][$sliceIndex]
+                                                ?? null;
+                                            if ($stageFilter) {
+                                                $canvasStageLinks[] = route(
+                                                    \App\Support\PortalRoute::name('cases.index'),
+                                                    ($dashboardFilters ?? new \App\Support\DashboardFilters())->toCasesListingQueryArray($stageFilter)
+                                                );
+                                            }
+                                        }
+                                    }
+                                @endphp
                                 <canvas id="{{ $chart['id'] }}"
                                     aria-label="{{ $chart['title'] }}"
                                     data-chart-type="{{ $chart['type'] ?? 'doughnut' }}"
                                     data-chart-variant="{{ $variant }}"
                                     data-chart-layout="{{ $layout }}"
                                     @if(!empty($chart['horizontal'])) data-chart-horizontal="1" @endif
+                                    @if(($chart['key'] ?? '') === 'cases-stage' && $canvasStageLinks !== []) data-stage-links="{{ json_encode($canvasStageLinks) }}" @endif
                                     data-labels="{{ json_encode($canvasLabels) }}"
                                     data-values="{{ json_encode($canvasValues) }}"
                                     data-colors="{{ json_encode($canvasColors) }}"
@@ -93,8 +114,24 @@
                                     }
                                     $pct = $total > 0 ? round(($value / $total) * 100) : 0;
                                     $color = $chart['colors'][$i] ?? '#94a3b8';
+                                    $stageFilter = $chart['client_stage_slugs'][$i] ?? $chart['stage_ids'][$i] ?? null;
+                                    $stageCasesUrl = null;
+                                    if (($chart['key'] ?? '') === 'cases-stage' && $stageFilter && $casesIndexRoute) {
+                                        $stageCasesUrl = route(
+                                            \App\Support\PortalRoute::name('cases.index'),
+                                            ($dashboardFilters ?? new \App\Support\DashboardFilters())->toCasesListingQueryArray($stageFilter)
+                                        );
+                                    }
                                 @endphp
-                                <li>
+                                <li
+                                    @if($stageCasesUrl)
+                                        class="dashboard-chart-breakdown-item--linked"
+                                        data-cases-url="{{ $stageCasesUrl }}"
+                                        role="link"
+                                        tabindex="0"
+                                        aria-label="View {{ $label }} cases in a new tab"
+                                    @endif
+                                >
                                     <span class="dashboard-chart-dot" style="background: {{ $color }}"></span>
                                     <span class="dashboard-chart-breakdown-label">{{ $label }}</span>
                                     @if(in_array($layout, ['bars', 'bars-h'], true))
