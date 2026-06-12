@@ -13,7 +13,7 @@
 <div class="listing-panel">
     @include('partials.listing-toolbar', [
         'action' => route('superadmin.audit.index'),
-        'placeholder' => 'Search by case reference or ID…',
+        'placeholder' => 'Search by case reference, subject, or ID…',
         'filters' => [
             [
                 'name' => 'company',

@@ -18,7 +18,7 @@
             </form>
         @endif
 
-        <form id="delete-account-form-{{ $user->id }}" method="POST" action="{{ $deleteRoute }}" hidden>
+        <form id="delete-account-form-{{ $user->id }}" method="POST" action="{{ $deleteRoute }}" data-no-toast hidden>
             @csrf
             @method('DELETE')
         </form>

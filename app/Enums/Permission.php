@@ -45,7 +45,7 @@ enum Permission: string
     {
         return match ($this) {
             self::ProfileEdit => 'Update own name, phone, photo, and password.',
-            self::ChatClient => 'Open the shared case chat thread with clients (Admin, Super Admin & Client).',
+            self::ChatClient => 'Open the shared case chat thread. Client, Admin & Super Admin: any case. Analyst, QA & FQA: only when assigned to that case.',
             self::OnboardingApprove => 'Review onboarding queue, approve or reject companies, download KYC.',
             self::OrdersCreate => 'Create orders and bulk import on behalf of clients.',
             self::OrdersApprove => 'Approve or reject pending orders and create cases.',

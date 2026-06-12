@@ -29,16 +29,13 @@ class CaseMessageVisibility
 
             $companyIds = CompanyFilter::scopedCompanyIdsForUser($user);
             $query->whereHas('caseFile', fn (Builder $q) => $q
-                ->whereIn('company_id', $companyIds)
-                ->whereNotNull('assigned_to'));
+                ->whereIn('company_id', $companyIds));
         } elseif ($user->hasRole(UserRole::Admin) || $user->hasRole(UserRole::SuperAdmin)) {
             if (! $user->hasPermission(Permission::ChatClient)) {
                 $query->whereRaw('1 = 0');
 
                 return;
             }
-
-            $query->whereHas('caseFile', fn (Builder $q) => $q->whereNotNull('assigned_to'));
         } else {
             $query->whereRaw('1 = 0');
         }

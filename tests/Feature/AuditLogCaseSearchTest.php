@@ -54,6 +54,57 @@ class AuditLogCaseSearchTest extends TestCase
             ->assertDontSee($caseB->reference);
     }
 
+    public function test_audit_trail_lists_case_subject_for_case_related_entries(): void
+    {
+        [$caseA, , $admin] = $this->makeAuditScenario();
+
+        AuditLog::query()->create([
+            'user_id' => $admin->id,
+            'action' => 'message.sent',
+            'auditable_type' => CaseFile::class,
+            'auditable_id' => $caseA->id,
+            'properties' => [
+                'case_reference' => $caseA->reference,
+                'company_name' => 'Acme Ltd',
+            ],
+            'ip_address' => '127.0.0.1',
+        ]);
+
+        $this->actingAs($admin, 'web')
+            ->get(route('admin.audit.index', ['q' => $caseA->reference]))
+            ->assertOk()
+            ->assertSee('Subject A');
+    }
+
+    public function test_audit_trail_can_be_filtered_by_case_subject(): void
+    {
+        [$caseA, $caseB, $admin] = $this->makeAuditScenario();
+
+        AuditLog::query()->create([
+            'user_id' => $admin->id,
+            'action' => 'message.sent',
+            'auditable_type' => CaseFile::class,
+            'auditable_id' => $caseA->id,
+            'properties' => ['case_reference' => $caseA->reference],
+            'ip_address' => '127.0.0.1',
+        ]);
+
+        AuditLog::query()->create([
+            'user_id' => $admin->id,
+            'action' => 'message.sent',
+            'auditable_type' => CaseFile::class,
+            'auditable_id' => $caseB->id,
+            'properties' => ['case_reference' => $caseB->reference],
+            'ip_address' => '127.0.0.1',
+        ]);
+
+        $this->actingAs($admin, 'web')
+            ->get(route('admin.audit.index', ['q' => 'Subject A']))
+            ->assertOk()
+            ->assertSee($caseA->reference)
+            ->assertDontSee($caseB->reference);
+    }
+
     public function test_audit_trail_pagination_preserves_case_search_query(): void
     {
         [$case, , $admin] = $this->makeAuditScenario();

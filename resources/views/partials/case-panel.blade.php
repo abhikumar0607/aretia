@@ -2,8 +2,19 @@
     $visibleDocuments = $case->documentsForViewer();
     $documentTotal = $visibleDocuments->count();
     $paginatedDocuments = \App\Support\CollectionPaginator::paginate($visibleDocuments, pageName: 'docs_page');
-    $isClientViewer = auth()->user()?->hasRole(\App\Enums\UserRole::Client);
-    $stageHistories = $isClientViewer ? $case->clientVisibleStageHistories() : $case->stageHistories;
+    $viewer = auth()->user();
+    $isClientViewer = $viewer?->hasRole(\App\Enums\UserRole::Client);
+    $stageHistories = match (true) {
+        $isClientViewer => $case->clientVisibleStageHistories(),
+        $viewer?->isEmployee() => $case->stageHistories->filter(
+            fn ($history) => in_array(
+                $history->stage?->slug,
+                \App\Support\CaseWorkflow::employeeVisibleHistorySlugs($viewer->role),
+                true,
+            ),
+        ),
+        default => $case->stageHistories,
+    };
 @endphp
 <div class="case-workspace-grid case-workspace-grid-single">
     <section class="case-panel-card card">

@@ -190,15 +190,84 @@ class CaseWorkflow
      */
     public static function selectableSlugs(UserRole $role, ?string $currentSlug): array
     {
+        return self::employeeSelectableTargetSlugs($role, $currentSlug);
+    }
+
+    /**
+     * Stages shown in the employee stage dropdown — only this role's lane, never prior teams.
+     *
+     * @return list<string>
+     */
+    public static function employeeDropdownSlugs(UserRole $role, ?string $currentSlug): array
+    {
         $currentSlug = self::normalizeCurrentSlug($currentSlug);
+        $lane = self::laneSlugs($role);
 
-        $slugs = [$currentSlug];
-
-        if (self::isLaneUnlocked($role, $currentSlug)) {
-            $slugs = array_values(array_unique(array_merge($slugs, self::laneSlugs($role))));
+        if ($lane === [] || ! self::isLaneUnlocked($role, $currentSlug)) {
+            return [];
         }
 
-        return $slugs;
+        if ($role === UserRole::Analyst) {
+            return $lane;
+        }
+
+        if (in_array($currentSlug, $lane, true)) {
+            $slugs = [$currentSlug];
+            foreach (self::allowedNextSlugs($role, $currentSlug) as $next) {
+                if (in_array($next, $lane, true)) {
+                    $slugs[] = $next;
+                }
+            }
+
+            return array_values(array_unique($slugs));
+        }
+
+        return array_values(array_filter(
+            self::allowedNextSlugs($role, $currentSlug),
+            fn (string $slug) => in_array($slug, $lane, true),
+        ));
+    }
+
+    /**
+     * Stage slugs an employee may submit when updating a case.
+     *
+     * @return list<string>
+     */
+    public static function employeeSelectableTargetSlugs(UserRole $role, ?string $currentSlug): array
+    {
+        $currentSlug = self::normalizeCurrentSlug($currentSlug);
+        $dropdown = self::employeeDropdownSlugs($role, $currentSlug);
+
+        if ($dropdown === []) {
+            return [];
+        }
+
+        $lane = self::laneSlugs($role);
+        $next = array_values(array_filter(
+            self::allowedNextSlugs($role, $currentSlug),
+            fn (string $slug) => in_array($slug, $lane, true),
+        ));
+
+        if (! in_array($currentSlug, $lane, true)) {
+            return $next;
+        }
+
+        $targets = in_array($currentSlug, $dropdown, true) ? [$currentSlug] : [];
+
+        return array_values(array_unique(array_merge($targets, $next)));
+    }
+
+    public static function employeeLaneFrozen(UserRole $role, ?string $currentSlug): bool
+    {
+        return self::employeeDropdownSlugs($role, $currentSlug) === [];
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function employeeVisibleHistorySlugs(UserRole $role): array
+    {
+        return self::laneSlugs($role);
     }
 
     /**
