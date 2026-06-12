@@ -23,10 +23,10 @@ class JsonToastResponse
         }
 
         if ($response instanceof RedirectResponse) {
-            $toast = $request->session()->get('toast');
+            $toast = $request->session()->pull('toast');
 
             if (! $toast && $request->session()->has('success')) {
-                $toast = Toast::payload($request->session()->get('success'));
+                $toast = Toast::payload($request->session()->pull('success'));
             }
 
             if (! $toast) {

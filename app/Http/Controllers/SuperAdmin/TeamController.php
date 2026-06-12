@@ -246,13 +246,11 @@ class TeamController extends Controller
 
     public function destroyUser(Request $request, User $user): JsonResponse|RedirectResponse
     {
-        $redirect = $user->hasRole(UserRole::Client) && $user->company_id
-            ? route('superadmin.clients.show', $user->company_id)
-            : route('superadmin.employees.index');
+        $name = $user->name;
 
         $this->access->deleteUser($request->user(), $user);
 
-        return Toast::to($redirect, 'Account deleted permanently.');
+        return Toast::back("{$name}'s account was deleted permanently.");
     }
 
     public function deactivateCompany(Request $request, Company $company): JsonResponse|RedirectResponse

@@ -101,27 +101,36 @@ class AuditLog extends Model
         $entity = $this->auditable;
 
         return match ($this->auditable_type) {
-            CaseFile::class => $this->joinDot(
+            CaseFile::class => $this->joinDotMany([
                 $props['case_reference'] ?? $entity?->reference ?? ('#'.$this->auditable_id),
+                $this->subjectName($entity instanceof CaseFile ? $entity : null),
                 $props['company_name'] ?? $entity?->company?->name,
-            ),
-            Order::class => $this->joinDot(
+            ]),
+            Order::class => $this->joinDotMany([
                 $props['order_reference'] ?? $entity?->reference ?? ('#'.$this->auditable_id),
+                $props['subject_name'] ?? ($entity instanceof Order ? $entity->subject_name : null),
                 $props['company_name'] ?? $entity?->company?->name,
-            ),
+            ]),
             Company::class => $props['company_name'] ?? $entity?->name ?? ('Company #'.$this->auditable_id),
             User::class => $this->joinDot(
                 $props['user_name'] ?? $entity?->name ?? ('User #'.$this->auditable_id),
                 $props['user_email'] ?? $entity?->email,
             ),
             WorkflowStage::class => 'Stage · '.($props['stage_name'] ?? $entity?->name ?? ('#'.$this->auditable_id)),
-            Report::class => 'Report · case '.($props['case_reference'] ?? $entity?->caseFile?->reference ?? ('#'.$this->auditable_id)),
-            Document::class => $this->joinDot(
+            Report::class => 'Report · '.$this->joinDotMany([
+                'case '.($props['case_reference'] ?? $entity?->caseFile?->reference ?? ('#'.$this->auditable_id)),
+                $this->subjectName($entity?->caseFile),
+            ]),
+            Document::class => $this->joinDotMany([
                 'Document · '.($props['document_name'] ?? $entity?->original_name ?? ('#'.$this->auditable_id)),
                 ($props['case_reference'] ?? null) ? 'Case '.$props['case_reference'] : null,
-            ),
+                $this->subjectName($entity instanceof Document && $entity->documentable instanceof CaseFile ? $entity->documentable : null),
+            ]),
             KycDocument::class => 'KYC · '.($props['document_type'] ?? $entity?->type ?? ('#'.$this->auditable_id)),
-            Message::class => 'Case '.($props['case_reference'] ?? $entity?->caseFile?->reference ?? ('#'.$entity?->case_id)),
+            Message::class => $this->joinDotMany([
+                'Case '.($props['case_reference'] ?? $entity?->caseFile?->reference ?? ('#'.$entity?->case_id)),
+                $this->subjectName($entity?->caseFile),
+            ]),
             default => null,
         };
     }
@@ -263,21 +272,42 @@ class AuditLog extends Model
 
     private function joinDot(?string $a, ?string $b, string $sep = ' · '): ?string
     {
-        $a = trim((string) $a);
-        $b = trim((string) $b);
+        return $this->joinDotMany([$a, $b], $sep);
+    }
 
-        if ($a === '' && $b === '') {
+    /**
+     * @param  array<int, string|null>  $parts
+     */
+    private function joinDotMany(array $parts, string $sep = ' · '): ?string
+    {
+        $parts = array_values(array_filter(
+            array_map(fn ($part) => trim((string) $part), $parts),
+            fn (string $part) => $part !== '',
+        ));
+
+        if ($parts === []) {
             return null;
         }
 
-        if ($a === '') {
-            return $b;
+        return implode($sep, $parts);
+    }
+
+    private function subjectName(?CaseFile $case = null): ?string
+    {
+        $props = $this->properties ?? [];
+
+        if (! empty($props['subject_name'])) {
+            return trim((string) $props['subject_name']);
         }
 
-        if ($b === '') {
-            return $a;
+        if ($case) {
+            $case->loadMissing('order');
+
+            return filled($case->order?->subject_name)
+                ? trim((string) $case->order->subject_name)
+                : null;
         }
 
-        return $a.$sep.$b;
+        return null;
     }
 }

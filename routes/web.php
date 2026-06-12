@@ -74,11 +74,11 @@ Route::middleware('auth')->group(function () {
     Route::middleware('permission:chat.client')->group(function () {
         Route::get('/chat/inbox', [ChatInboxController::class, 'index'])->name('chat.inbox.index');
         Route::post('/chat/inbox/read-all', [ChatInboxController::class, 'markAllRead'])->name('chat.inbox.read-all');
-
-        Route::get('/cases/{case}/messages', [MessageController::class, 'index'])->name('cases.messages.index');
-        Route::post('/cases/{case}/messages', [MessageController::class, 'store'])->name('cases.messages.store');
-        Route::post('/cases/{case}/messages/read', [MessageController::class, 'markRead'])->name('cases.messages.read');
     });
+
+    Route::get('/cases/{case}/messages', [MessageController::class, 'index'])->name('cases.messages.index');
+    Route::post('/cases/{case}/messages', [MessageController::class, 'store'])->name('cases.messages.store');
+    Route::post('/cases/{case}/messages/read', [MessageController::class, 'markRead'])->name('cases.messages.read');
 
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.read-all');

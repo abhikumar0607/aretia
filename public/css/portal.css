@@ -4908,6 +4908,16 @@ nav[role="navigation"] span { background: var(--primary-soft); }
     padding: 1.35rem 1.5rem;
 }
 
+.case-stage-now {
+    margin: 0 0 1rem;
+    font-size: 0.9375rem;
+    color: var(--text-muted, #64748b);
+}
+
+.case-stage-now strong {
+    color: var(--text, #0f172a);
+}
+
 .case-action-card--team {
     grid-column: 1 / -1;
 }

@@ -15,31 +15,29 @@ class CaseChatService
 {
     public function canUseCaseChat(CaseFile $case, User $viewer): bool
     {
-        if (! $viewer->hasPermission(Permission::ChatClient)) {
-            return false;
-        }
-
         if ($viewer->hasRole(UserRole::Admin) || $viewer->hasRole(UserRole::SuperAdmin)) {
-            return (bool) $case->assigned_to;
+            return $viewer->hasPermission(Permission::ChatClient);
         }
 
         if ($viewer->hasRole(UserRole::Client)) {
-            return $case->assigned_to
+            return $viewer->hasPermission(Permission::ChatClient)
                 && CompanyFilter::userCanAccessCompany($viewer, $case->company_id);
+        }
+
+        if ($viewer->isEmployee() && $case->hasAnalyst($viewer)) {
+            return $viewer->hasPermission(Permission::ChatClient);
         }
 
         return false;
     }
 
-    public function canSendCaseChat(User $sender): bool
+    public function canSendCaseChat(User $sender, ?CaseFile $case = null): bool
     {
-        if (! $sender->hasPermission(Permission::ChatClient)) {
+        if ($case === null) {
             return false;
         }
 
-        return $sender->hasRole(UserRole::Client)
-            || $sender->hasRole(UserRole::Admin)
-            || $sender->hasRole(UserRole::SuperAdmin);
+        return $this->canUseCaseChat($case, $sender);
     }
 
     public function threadTitle(CaseFile $case): string
@@ -77,6 +75,13 @@ class CaseChatService
 
         if ($sender->hasRole(UserRole::Admin) || $sender->hasRole(UserRole::SuperAdmin)) {
             return CompanyFilter::clientUsersForCompany((int) $case->company_id, (int) $sender->id);
+        }
+
+        if ($sender->isEmployee() && $case->hasAnalyst($sender) && $sender->hasPermission(Permission::ChatClient)) {
+            return CompanyFilter::clientUsersForCompany((int) $case->company_id)
+                ->merge($this->adminRecipients((int) $sender->id))
+                ->unique('id')
+                ->values();
         }
 
         return collect();

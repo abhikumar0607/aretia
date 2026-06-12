@@ -107,17 +107,19 @@ class AuditLogFilters
      */
     private static function resolveCases(string $term): Collection
     {
-        $query = CaseFile::query();
+        $like = '%'.$term.'%';
 
-        if (ctype_digit($term)) {
-            $query->where(function (Builder $inner) use ($term) {
-                $inner->where('id', (int) $term)
-                    ->orWhere('reference', 'like', '%'.$term.'%');
-            });
-        } else {
-            $query->where('reference', 'like', '%'.$term.'%');
-        }
+        return CaseFile::query()
+            ->where(function (Builder $inner) use ($term, $like) {
+                if (ctype_digit($term)) {
+                    $inner->where('id', (int) $term)
+                        ->orWhere('reference', 'like', $like);
+                } else {
+                    $inner->where('reference', 'like', $like);
+                }
 
-        return $query->get();
+                $inner->orWhereHas('order', fn (Builder $q) => $q->where('subject_name', 'like', $like));
+            })
+            ->get();
     }
 }

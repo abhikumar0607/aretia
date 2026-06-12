@@ -55,46 +55,36 @@ class CaseController extends Controller
             CaseFile::clientContactWith()
         ));
         $stages = WorkflowStage::where('is_active', true)->orderBy('sort_order')->get();
+        $role = auth()->user()->role;
         $currentSlug = CaseWorkflow::normalizeCurrentSlug($case->stage?->slug);
-        $allowedNextSlugs = CaseWorkflow::allowedNextSlugs(auth()->user()->role, $currentSlug);
-        $roleValue = auth()->user()->role->value;
-        $laneUnlocked = match ($roleValue) {
-            'analyst' => true,
-            'qa' => in_array($currentSlug, [CaseWorkflow::SLUG_RESEARCH_DONE, CaseWorkflow::SLUG_QA_STARTED], true),
-            'fqa' => in_array($currentSlug, [CaseWorkflow::SLUG_QA_DONE, CaseWorkflow::SLUG_FQA_STARTED], true),
-            default => false,
-        };
+        $dropdownSlugs = CaseWorkflow::employeeDropdownSlugs($role, $currentSlug);
+        $selectableSlugs = CaseWorkflow::employeeSelectableTargetSlugs($role, $currentSlug);
 
-        $visibleStageIds = $stages
-            ->filter(function (WorkflowStage $stage) use ($currentSlug, $allowedNextSlugs, $roleValue, $laneUnlocked) {
-                // Always show current stage.
-                if ($stage->slug === $currentSlug) {
-                    return true;
-                }
-
-                // Always show the next allowed stage(s) for this role (this is what "unlocks" as previous team completes).
-                if (in_array($stage->slug, $allowedNextSlugs, true)) {
-                    return true;
-                }
-
-                // Analysts can see their whole lane anytime; QA/FQA only after their lane is unlocked.
-                if ($stage->responsible_role !== null && $stage->responsible_role === $roleValue) {
-                    return $roleValue === 'analyst' || $laneUnlocked;
-                }
-
-                return false;
-            })
+        $dropdownStageIds = $stages
+            ->filter(fn (WorkflowStage $stage) => in_array($stage->slug, $dropdownSlugs, true))
             ->pluck('id')
             ->all();
-        $selectableSlugs = \App\Support\CaseWorkflow::selectableSlugs(auth()->user()->role, $currentSlug);
         $selectableStageIds = $stages
             ->filter(fn (WorkflowStage $stage) => in_array($stage->slug, $selectableSlugs, true))
             ->pluck('id')
             ->all();
+        $stageFrozen = CaseWorkflow::employeeLaneFrozen($role, $currentSlug);
+        $canUpdateStage = count(array_diff($selectableSlugs, [$currentSlug])) > 0;
+        $defaultStageId = in_array((int) $case->workflow_stage_id, $dropdownStageIds, true)
+            ? $case->workflow_stage_id
+            : ($dropdownStageIds[0] ?? null);
 
         $viewPrefix = auth()->user()->role->value;
 
-        return view($viewPrefix.'.cases.show', compact('case', 'stages', 'visibleStageIds', 'selectableStageIds'));
+        return view($viewPrefix.'.cases.show', compact(
+            'case',
+            'stages',
+            'dropdownStageIds',
+            'selectableStageIds',
+            'stageFrozen',
+            'canUpdateStage',
+            'defaultStageId',
+        ));
     }
 
     public function updateStage(Request $request, CaseFile $case): JsonResponse|RedirectResponse
@@ -110,17 +100,9 @@ class CaseController extends Controller
         $currentSlug = CaseWorkflow::normalizeCurrentSlug($case->stage?->slug);
         $targetStage = WorkflowStage::findOrFail((int) $data['workflow_stage_id']);
 
-        $selectableSlugs = CaseWorkflow::selectableSlugs(auth()->user()->role, $currentSlug);
+        $selectableSlugs = CaseWorkflow::employeeSelectableTargetSlugs(auth()->user()->role, $currentSlug);
         if (! in_array($targetStage->slug, $selectableSlugs, true)) {
             return Toast::back('You are not allowed to move the case to this stage yet.');
-        }
-
-        if (
-            $targetStage->slug !== $currentSlug
-            && $targetStage->responsible_role !== null
-            && $targetStage->responsible_role !== auth()->user()->role->value
-        ) {
-            return Toast::back('You are not allowed to move the case to this stage.');
         }
 
         $case->update(['workflow_stage_id' => $data['workflow_stage_id']]);

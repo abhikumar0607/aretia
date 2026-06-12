@@ -39,13 +39,16 @@ class AuditService
     private function enrich(string $action, ?Model $auditable, array $properties): array
     {
         if ($auditable instanceof CaseFile) {
+            $auditable->loadMissing('order');
             $properties['case_reference'] = $properties['case_reference'] ?? $auditable->reference;
             $properties['company_name'] = $properties['company_name'] ?? $auditable->company?->name;
+            $properties['subject_name'] = $properties['subject_name'] ?? $auditable->order?->subject_name;
         }
 
         if ($auditable instanceof Order) {
             $properties['order_reference'] = $properties['order_reference'] ?? $auditable->reference;
             $properties['company_name'] = $properties['company_name'] ?? $auditable->company?->name;
+            $properties['subject_name'] = $properties['subject_name'] ?? $auditable->subject_name;
         }
 
         if ($auditable instanceof Company) {
@@ -62,14 +65,18 @@ class AuditService
         }
 
         if ($auditable instanceof Report && $auditable->caseFile) {
+            $auditable->caseFile->loadMissing('order');
             $properties['case_reference'] = $properties['case_reference'] ?? $auditable->caseFile->reference;
+            $properties['subject_name'] = $properties['subject_name'] ?? $auditable->caseFile->order?->subject_name;
         }
 
         if ($auditable instanceof Document && $auditable->documentable_type === CaseFile::class) {
             $properties['document_name'] = $properties['document_name'] ?? $auditable->original_name;
             $case = CaseFile::find($auditable->documentable_id);
             if ($case) {
+                $case->loadMissing('order');
                 $properties['case_reference'] = $properties['case_reference'] ?? $case->reference;
+                $properties['subject_name'] = $properties['subject_name'] ?? $case->order?->subject_name;
             }
         }
 
@@ -79,7 +86,9 @@ class AuditService
         }
 
         if ($auditable instanceof Message) {
+            $auditable->loadMissing('caseFile.order');
             $properties['case_reference'] = $properties['case_reference'] ?? $auditable->caseFile?->reference;
+            $properties['subject_name'] = $properties['subject_name'] ?? $auditable->caseFile?->order?->subject_name;
         }
 
         if ($action === 'case.assigned') {

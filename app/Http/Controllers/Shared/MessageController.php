@@ -34,7 +34,10 @@ class MessageController extends Controller
         $this->authorizeCaseChat($case);
 
         $user = $request->user();
-        $query = $case->messages()->with(['sender', 'recipient', 'caseFile'])->orderBy('created_at');
+        $query = Message::query()
+            ->where('case_id', $case->id)
+            ->with(['sender', 'recipient', 'caseFile'])
+            ->orderBy('created_at');
         $this->caseChat->applyCaseThreadVisibility($query, $case, $user);
 
         $messages = $query->get()->map(fn (Message $message) => $this->formatMessage($message, $case));
@@ -64,7 +67,7 @@ class MessageController extends Controller
 
         $sender = $request->user();
 
-        if (! $this->caseChat->canSendCaseChat($sender)) {
+        if (! $this->caseChat->canSendCaseChat($sender, $case)) {
             abort(403, 'You do not have permission to post in case chat.');
         }
 
@@ -194,13 +197,7 @@ class MessageController extends Controller
 
     private function authorizeCaseChat(CaseFile $case): void
     {
-        $user = auth()->user();
-
-        if (! $user->hasPermission(Permission::ChatClient)) {
-            abort(403, 'You do not have permission to use case chat.');
-        }
-
-        if (! $this->caseChat->canUseCaseChat($case, $user)) {
+        if (! $this->caseChat->canUseCaseChat($case, auth()->user())) {
             abort(403, 'Case chat is not available on this case.');
         }
     }

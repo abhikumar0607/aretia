@@ -16,10 +16,11 @@ class AuditLogController extends Controller
         $logs = AuditLog::with([
             'user',
             'auditable' => fn ($morphTo) => $morphTo->morphWith([
-                \App\Models\CaseFile::class => ['company', 'assignee', 'stage'],
+                \App\Models\CaseFile::class => ['company', 'assignee', 'stage', 'order'],
                 \App\Models\Order::class => ['company', 'package'],
-                \App\Models\Report::class => ['caseFile'],
-                \App\Models\Message::class => ['caseFile'],
+                \App\Models\Report::class => ['caseFile.order'],
+                \App\Models\Message::class => ['caseFile.order'],
+                \App\Models\Document::class => ['documentable'],
             ]),
         ])
             ->tap(fn ($query) => AuditLogFilters::apply($query, $request))
