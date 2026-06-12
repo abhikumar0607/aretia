@@ -1,6 +1,5 @@
 @php
-    $appUrl = rtrim(config('app.url'), '/');
-    $logoUrl = $appUrl.'/images/aretia-logo.png';
+    $logoUrl = asset('images/aretia-logo.png');
     $accent = $accent ?? 'primary';
 
     $accentMap = [
@@ -44,7 +43,7 @@
                             <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
                                 <tr>
                                     <td align="left" style="vertical-align:middle;">
-                                        <a href="{{ $appUrl }}" style="text-decoration:none;display:inline-block;">
+                                        <a href="{{ url('/') }}" style="text-decoration:none;display:inline-block;">
                                             <img src="{{ $logoUrl }}" alt="Aretia" width="140" style="display:block;border:0;outline:none;max-width:140px;height:auto;">
                                         </a>
                                     </td>
