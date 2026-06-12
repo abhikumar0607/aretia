@@ -8,8 +8,9 @@ use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\Company;
 use App\Models\User;
-use App\Services\AuditService;
 use App\Rules\StrictEmail;
+use App\Services\AuditService;
+use App\Services\RegistrationOtpService;
 use App\Support\PasswordRules;
 use App\Support\Toast;
 use Illuminate\Auth\Events\Registered;
@@ -22,11 +23,27 @@ use Illuminate\View\View;
 
 class RegisterController extends Controller
 {
-    public function __construct(private AuditService $audit) {}
+    public function __construct(
+        private AuditService $audit,
+        private RegistrationOtpService $otp,
+    ) {}
 
     public function show(): View
     {
         return view('auth.register');
+    }
+
+    public function showVerify(): View|RedirectResponse
+    {
+        $pending = $this->otp->pending();
+
+        if ($pending === null) {
+            return redirect()->route('register');
+        }
+
+        return view('auth.register-verify', [
+            'maskedEmail' => RegistrationOtpService::maskEmail($pending['email']),
+        ]);
     }
 
     public function store(Request $request): JsonResponse|RedirectResponse
@@ -39,6 +56,53 @@ class RegisterController extends Controller
             'password' => ['required', 'confirmed', PasswordRules::defaults()],
         ]);
 
+        $this->otp->storePending($data);
+
+        return Toast::to(
+            route('register.verify'),
+            'Verification code sent to your email. Enter the OTP to continue.'
+        );
+    }
+
+    public function verify(Request $request): JsonResponse|RedirectResponse
+    {
+        if ($this->otp->pending() === null) {
+            return redirect()->route('register');
+        }
+
+        $request->validate([
+            'otp' => ['required', 'string', 'regex:/^\d{6}$/'],
+        ]);
+
+        if (! $this->otp->verify($request->input('otp'))) {
+            return Toast::back('OTP not match', 'error');
+        }
+
+        $data = $this->otp->pending();
+        $this->otp->clear();
+
+        $user = $this->createAccount($data);
+
+        event(new Registered($user));
+        Auth::login($user);
+
+        return Toast::to(route('client.onboarding'), 'Email verified. Please upload KYC documents.');
+    }
+
+    public function resendOtp(): JsonResponse|RedirectResponse
+    {
+        if (! $this->otp->resend()) {
+            return redirect()->route('register');
+        }
+
+        return Toast::to(route('register.verify'), 'A new verification code has been sent to your email.');
+    }
+
+    /**
+     * @param  array{name: string, company: string, email: string, phone: string, password: string}  $data
+     */
+    private function createAccount(array $data): User
+    {
         $company = Company::create([
             'name' => $data['company'],
             'email' => $data['email'],
@@ -59,9 +123,6 @@ class RegisterController extends Controller
 
         $this->audit->log('client.registered', $company, ['user_id' => $user->id]);
 
-        event(new Registered($user));
-        Auth::login($user);
-
-        return Toast::to(route('client.onboarding'), 'Registration successful. Please upload KYC documents.');
+        return $user;
     }
 }

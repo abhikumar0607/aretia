@@ -147,6 +147,7 @@ class DashboardChartData
                     'label' => self::orderStatusLabel($status),
                     'value' => $count,
                     'color' => self::orderStatusColor($status),
+                    'order_status' => $status->value,
                 ];
             }
         }
@@ -466,6 +467,14 @@ class DashboardChartData
             )),
             'canvas_client_stage_slugs' => array_values(array_map(
                 fn (array $slice) => $slice['client_stage_slug'] ?? null,
+                $nonZero
+            )),
+            'order_statuses' => array_map(
+                fn (array $slice) => $slice['order_status'] ?? null,
+                $slices
+            ),
+            'canvas_order_statuses' => array_values(array_map(
+                fn (array $slice) => $slice['order_status'] ?? null,
                 $nonZero
             )),
         ];

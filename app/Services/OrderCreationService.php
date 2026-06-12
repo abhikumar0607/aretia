@@ -38,20 +38,23 @@ class OrderCreationService
         }
 
         if ($forAdmin) {
-            $companyEmail = trim((string) ($data['company_email'] ?? ''));
-            if ($companyEmail === '') {
-                throw new \InvalidArgumentException('company_email is required for admin import.');
+            $companyName = trim((string) ($data['company_name'] ?? ''));
+            if ($companyName === '') {
+                throw new \InvalidArgumentException('company_name is required for admin import.');
             }
-            $company = Company::where('email', $companyEmail)->first();
+            $company = Company::query()
+                ->whereRaw('LOWER(name) = ?', [mb_strtolower($companyName)])
+                ->first();
             if (! $company) {
-                throw new \InvalidArgumentException("Company not found: {$companyEmail}");
+                throw new \InvalidArgumentException("Company not found: {$companyName}");
             }
             $orderUser = $company->users()->where('is_primary', true)->first()
                 ?? $company->users()->first();
             if (! $orderUser) {
-                throw new \InvalidArgumentException("No user found for company: {$companyEmail}");
+                throw new \InvalidArgumentException("No user found for company: {$companyName}");
             }
         } else {
+            // Client portal: always the acting user's company (never from spreadsheet).
             $company = $actingUser->company;
             $orderUser = $actingUser;
             if (! $company) {

@@ -105,6 +105,105 @@ class AuditLogCaseSearchTest extends TestCase
             ->assertDontSee($caseB->reference);
     }
 
+    public function test_audit_trail_can_be_filtered_by_employee_name(): void
+    {
+        [$caseA, $caseB, $admin] = $this->makeAuditScenario();
+
+        $analyst = User::factory()->create([
+            'name' => 'Analyst Search User',
+            'role' => UserRole::Analyst,
+            'is_active' => true,
+        ]);
+
+        AuditLog::query()->create([
+            'user_id' => $analyst->id,
+            'action' => 'case.stage_updated',
+            'auditable_type' => CaseFile::class,
+            'auditable_id' => $caseA->id,
+            'properties' => ['case_reference' => $caseA->reference],
+            'ip_address' => '127.0.0.1',
+        ]);
+
+        AuditLog::query()->create([
+            'user_id' => $admin->id,
+            'action' => 'case.stage_updated',
+            'auditable_type' => CaseFile::class,
+            'auditable_id' => $caseB->id,
+            'properties' => ['case_reference' => $caseB->reference],
+            'ip_address' => '127.0.0.1',
+        ]);
+
+        $this->actingAs($admin, 'web')
+            ->get(route('admin.audit.index', ['q' => 'Analyst Search']))
+            ->assertOk()
+            ->assertSee('Analyst Search User')
+            ->assertSee($caseA->reference)
+            ->assertDontSee($caseB->reference);
+    }
+
+    public function test_employee_search_does_not_match_names_only_in_audit_details(): void
+    {
+        [$caseA, $caseB, $admin] = $this->makeAuditScenario();
+
+        $analyst = User::factory()->create([
+            'name' => 'Analyst Search User',
+            'role' => UserRole::Analyst,
+            'is_active' => true,
+        ]);
+
+        AuditLog::query()->create([
+            'user_id' => $admin->id,
+            'action' => 'case.assigned',
+            'auditable_type' => CaseFile::class,
+            'auditable_id' => $caseB->id,
+            'properties' => [
+                'case_reference' => $caseB->reference,
+                'lead_name' => $analyst->name,
+            ],
+            'ip_address' => '127.0.0.1',
+        ]);
+
+        AuditLog::query()->create([
+            'user_id' => $analyst->id,
+            'action' => 'case.stage_updated',
+            'auditable_type' => CaseFile::class,
+            'auditable_id' => $caseA->id,
+            'properties' => ['case_reference' => $caseA->reference],
+            'ip_address' => '127.0.0.1',
+        ]);
+
+        $this->actingAs($admin, 'web')
+            ->get(route('admin.audit.index', ['q' => 'Analyst Search']))
+            ->assertOk()
+            ->assertSee($caseA->reference)
+            ->assertDontSee($caseB->reference);
+    }
+
+    public function test_audit_trail_shows_subject_column_separately(): void
+    {
+        [$caseA, , $admin] = $this->makeAuditScenario();
+
+        AuditLog::query()->create([
+            'user_id' => $admin->id,
+            'action' => 'case.stage_updated',
+            'auditable_type' => CaseFile::class,
+            'auditable_id' => $caseA->id,
+            'properties' => [
+                'case_reference' => $caseA->reference,
+                'company_name' => 'Acme Ltd',
+            ],
+            'ip_address' => '127.0.0.1',
+        ]);
+
+        $response = $this->actingAs($admin, 'web')
+            ->get(route('admin.audit.index', ['q' => $caseA->reference]))
+            ->assertOk();
+
+        $response->assertSee('Subject</th>', false);
+        $response->assertSee('Subject A');
+        $response->assertSee($caseA->reference);
+    }
+
     public function test_audit_trail_pagination_preserves_case_search_query(): void
     {
         [$case, , $admin] = $this->makeAuditScenario();

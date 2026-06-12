@@ -1,18 +1,18 @@
 (function () {
-    function openCasesUrl(url) {
+    function openListingUrl(url) {
         if (url) {
             window.open(url, '_blank', 'noopener,noreferrer');
         }
     }
 
-    document.querySelectorAll('.dashboard-chart-breakdown-item--linked[data-cases-url]').forEach(function (row) {
+    document.querySelectorAll('.dashboard-chart-breakdown-item--linked').forEach(function (row) {
         row.addEventListener('click', function () {
-            openCasesUrl(row.getAttribute('data-cases-url'));
+            openListingUrl(row.getAttribute('data-cases-url') || row.getAttribute('data-orders-url'));
         });
         row.addEventListener('keydown', function (event) {
             if (event.key === 'Enter' || event.key === ' ') {
                 event.preventDefault();
-                openCasesUrl(row.getAttribute('data-cases-url'));
+                openListingUrl(row.getAttribute('data-cases-url') || row.getAttribute('data-orders-url'));
             }
         });
     });
@@ -122,25 +122,30 @@
             };
         }
 
-        var stageLinks = [];
+        var listingLinks = [];
         if (canvas.dataset.stageLinks) {
             try {
-                stageLinks = JSON.parse(canvas.dataset.stageLinks || '[]');
+                listingLinks = JSON.parse(canvas.dataset.stageLinks || '[]');
             } catch (e) {
-                stageLinks = [];
+                listingLinks = [];
+            }
+        }
+        if (!listingLinks.length && canvas.dataset.orderLinks) {
+            try {
+                listingLinks = JSON.parse(canvas.dataset.orderLinks || '[]');
+            } catch (e) {
+                listingLinks = [];
             }
         }
 
-        if (stageLinks.length) {
+        if (listingLinks.length) {
             options.onHover = function (event, elements) {
                 event.native.target.style.cursor = elements.length ? 'pointer' : 'default';
             };
             options.onClick = function (event, elements) {
                 if (!elements.length) return;
-                var url = stageLinks[elements[0].index];
-                if (url) {
-                    window.open(url, '_blank', 'noopener,noreferrer');
-                }
+                var url = listingLinks[elements[0].index];
+                openListingUrl(url);
             };
         }
 

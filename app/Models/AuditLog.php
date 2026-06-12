@@ -103,12 +103,10 @@ class AuditLog extends Model
         return match ($this->auditable_type) {
             CaseFile::class => $this->joinDotMany([
                 $props['case_reference'] ?? $entity?->reference ?? ('#'.$this->auditable_id),
-                $this->subjectName($entity instanceof CaseFile ? $entity : null),
                 $props['company_name'] ?? $entity?->company?->name,
             ]),
             Order::class => $this->joinDotMany([
                 $props['order_reference'] ?? $entity?->reference ?? ('#'.$this->auditable_id),
-                $props['subject_name'] ?? ($entity instanceof Order ? $entity->subject_name : null),
                 $props['company_name'] ?? $entity?->company?->name,
             ]),
             Company::class => $props['company_name'] ?? $entity?->name ?? ('Company #'.$this->auditable_id),
@@ -117,20 +115,36 @@ class AuditLog extends Model
                 $props['user_email'] ?? $entity?->email,
             ),
             WorkflowStage::class => 'Stage · '.($props['stage_name'] ?? $entity?->name ?? ('#'.$this->auditable_id)),
-            Report::class => 'Report · '.$this->joinDotMany([
-                'case '.($props['case_reference'] ?? $entity?->caseFile?->reference ?? ('#'.$this->auditable_id)),
-                $this->subjectName($entity?->caseFile),
-            ]),
+            Report::class => 'Report · '.($props['case_reference'] ?? $entity?->caseFile?->reference ?? ('#'.$this->auditable_id)),
             Document::class => $this->joinDotMany([
                 'Document · '.($props['document_name'] ?? $entity?->original_name ?? ('#'.$this->auditable_id)),
                 ($props['case_reference'] ?? null) ? 'Case '.$props['case_reference'] : null,
-                $this->subjectName($entity instanceof Document && $entity->documentable instanceof CaseFile ? $entity->documentable : null),
             ]),
             KycDocument::class => 'KYC · '.($props['document_type'] ?? $entity?->type ?? ('#'.$this->auditable_id)),
-            Message::class => $this->joinDotMany([
-                'Case '.($props['case_reference'] ?? $entity?->caseFile?->reference ?? ('#'.$entity?->case_id)),
-                $this->subjectName($entity?->caseFile),
-            ]),
+            Message::class => 'Case '.($props['case_reference'] ?? $entity?->caseFile?->reference ?? ('#'.$entity?->case_id)),
+            default => null,
+        };
+    }
+
+    public function subjectLabel(): ?string
+    {
+        $props = $this->properties ?? [];
+        $entity = $this->auditable;
+
+        if (! empty($props['subject_name'])) {
+            return trim((string) $props['subject_name']);
+        }
+
+        return match ($this->auditable_type) {
+            CaseFile::class => $this->subjectName($entity instanceof CaseFile ? $entity : null),
+            Order::class => ($entity instanceof Order && filled($entity->subject_name))
+                ? trim((string) $entity->subject_name)
+                : null,
+            Report::class => $this->subjectName($entity?->caseFile),
+            Document::class => $entity instanceof Document && $entity->documentable instanceof CaseFile
+                ? $this->subjectName($entity->documentable)
+                : null,
+            Message::class => $this->subjectName($entity?->caseFile),
             default => null,
         };
     }

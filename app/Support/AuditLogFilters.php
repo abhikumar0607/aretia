@@ -16,7 +16,7 @@ class AuditLogFilters
     public static function apply(Builder $query, Request $request): void
     {
         self::applyCompany($query, $request);
-        self::applyCaseSearch($query, $request);
+        self::applyTextSearch($query, $request);
     }
 
     public static function hasActiveFilters(Request $request): bool
@@ -48,7 +48,7 @@ class AuditLogFilters
         });
     }
 
-    private static function applyCaseSearch(Builder $query, Request $request): void
+    private static function applyTextSearch(Builder $query, Request $request): void
     {
         $term = trim((string) $request->input('q', ''));
         if ($term === '') {
@@ -56,8 +56,15 @@ class AuditLogFilters
         }
 
         $cases = self::resolveCases($term);
+        $like = '%'.$term.'%';
 
-        $query->where(function (Builder $inner) use ($cases, $term) {
+        $query->where(function (Builder $inner) use ($cases, $term, $like) {
+            // Employee search: only actions performed by that user (not mentions in details).
+            $inner->whereHas('user', function (Builder $q) use ($like) {
+                $q->where('name', 'like', $like)
+                    ->orWhere('email', 'like', $like);
+            });
+
             if ($cases->isNotEmpty()) {
                 $caseIds = $cases->pluck('id')->all();
                 $references = $cases->pluck('reference')->all();
@@ -93,7 +100,6 @@ class AuditLogFilters
                 }
             }
 
-            $like = '%'.$term.'%';
             $inner->orWhere('properties->case_reference', 'like', $like);
 
             if (ctype_digit($term)) {

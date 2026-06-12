@@ -27,10 +27,12 @@
                 <label for="login-email">Email address</label>
                 <input type="email" id="login-email" name="email" value="{{ old('email') }}" required autofocus autocomplete="email">
             </div>
-            <div class="auth-field">
-                <label for="login-password">Password</label>
-                <input type="password" id="login-password" name="password" required autocomplete="current-password">
-            </div>
+            @include('partials.auth-password-input', [
+                'id' => 'login-password',
+                'name' => 'password',
+                'label' => 'Password',
+                'autocomplete' => 'current-password',
+            ])
             <div class="auth-options">
                 <label class="auth-remember">
                     <input type="checkbox" name="remember">
@@ -48,6 +50,7 @@
     </div>
 </div>
 <script src="{{ asset('js/toast.js') }}"></script>
+<script src="{{ asset('js/password-toggle.js') }}" defer></script>
 <script src="{{ asset('js/ajax-submit.js') }}" defer></script>
 </body>
 </html>

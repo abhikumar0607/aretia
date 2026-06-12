@@ -6,6 +6,7 @@ use App\Enums\UserRole;
 use App\Models\Order;
 use App\Models\User;
 use App\Notifications\OrderDueDateSetNotification;
+use App\Support\SpreadsheetDateParser;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Notification;
@@ -14,14 +15,9 @@ class OrderDueDateService
 {
     public function __construct(private AuditService $audit) {}
 
-    public function parseOptional(?string $value): ?Carbon
+    public function parseOptional(mixed $value): ?Carbon
     {
-        $value = trim((string) $value);
-        if ($value === '') {
-            return null;
-        }
-
-        return Carbon::parse($value)->startOfDay();
+        return SpreadsheetDateParser::parseOptional($value);
     }
 
     public function apply(Order $order, ?Carbon $newDueDate, User $actor, bool $isUpdate): bool
