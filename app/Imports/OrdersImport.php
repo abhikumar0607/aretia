@@ -32,7 +32,11 @@ class OrdersImport implements ToCollection, WithHeadingRow
             }
 
             try {
-                $this->orderService->createFromRow($data, $this->actingUser, $this->forAdmin);
+                $this->orderService->createFromRow(
+                    $this->sanitizeRow($data),
+                    $this->actingUser,
+                    $this->forAdmin,
+                );
                 $this->imported++;
             } catch (\Throwable $e) {
                 $this->errors[] = [
@@ -41,6 +45,23 @@ class OrdersImport implements ToCollection, WithHeadingRow
                 ];
             }
         }
+    }
+
+    /**
+     * Client imports always use the logged-in user's company — ignore any company column in the sheet.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function sanitizeRow(array $data): array
+    {
+        if ($this->forAdmin) {
+            return $data;
+        }
+
+        unset($data['company_name'], $data['company_email']);
+
+        return $data;
     }
 
     /**

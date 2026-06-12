@@ -192,6 +192,27 @@ class DashboardFilters
         return $params;
     }
 
+    /**
+     * Query params for the orders listing page (preserves dashboard filters).
+     *
+     * @return array<string, string>
+     */
+    public function toOrdersListingQueryArray(?string $status = null): array
+    {
+        $params = $this->toQueryArray();
+
+        if ($this->companyId) {
+            unset($params['company_id']);
+            $params['company'] = (string) $this->companyId;
+        }
+
+        if ($status !== null && $status !== '') {
+            $params['status'] = (string) $status;
+        }
+
+        return $params;
+    }
+
     public function isCustomPeriod(): bool
     {
         return $this->period === self::PERIOD_CUSTOM;

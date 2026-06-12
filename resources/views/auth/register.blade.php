@@ -38,17 +38,33 @@
                 </div>
                 <div class="auth-field auth-field--full">
                     <label for="reg-phone">Phone</label>
-                    <input type="number" id="reg-phone" name="phone" value="{{ old('phone') }}" required inputmode="numeric" autocomplete="tel" min="0" step="1">
+                    <input
+                        type="tel"
+                        id="reg-phone"
+                        name="phone"
+                        value="{{ old('phone') }}"
+                        required
+                        inputmode="tel"
+                        autocomplete="tel"
+                        placeholder="e.g. +91 98765 43210"
+                    >
                 </div>
-                <div class="auth-field">
-                    <label for="reg-password">Password</label>
-                    <input type="password" id="reg-password" name="password" required autocomplete="new-password" aria-describedby="reg-password-hint">
-                    <p class="auth-field-hint" id="reg-password-hint">{{ \App\Support\PasswordRules::hint() }}</p>
-                </div>
-                <div class="auth-field">
-                    <label for="reg-password-confirm">Confirm password</label>
-                    <input type="password" id="reg-password-confirm" name="password_confirmation" required autocomplete="new-password">
-                </div>
+                @include('partials.auth-password-input', [
+                    'id' => 'reg-password',
+                    'name' => 'password',
+                    'label' => 'Password',
+                    'autocomplete' => 'new-password',
+                    'hint' => \App\Support\PasswordRules::hint(),
+                    'hintId' => 'reg-password-hint',
+                    'fieldClass' => 'auth-field--full',
+                ])
+                @include('partials.auth-password-input', [
+                    'id' => 'reg-password-confirm',
+                    'name' => 'password_confirmation',
+                    'label' => 'Confirm password',
+                    'autocomplete' => 'new-password',
+                    'fieldClass' => 'auth-field--full',
+                ])
             </div>
             <button type="submit" class="btn btn-primary btn-lg auth-submit">Continue to KYC</button>
         </form>
@@ -59,6 +75,7 @@
     </div>
 </div>
 <script src="{{ asset('js/toast.js') }}"></script>
+<script src="{{ asset('js/password-toggle.js') }}" defer></script>
 <script src="{{ asset('js/ajax-submit.js') }}" defer></script>
 </body>
 </html>

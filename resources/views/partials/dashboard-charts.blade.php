@@ -1,6 +1,7 @@
 @if(!empty($charts))
 @php
     $casesIndexRoute = auth()->check() ? \App\Support\PortalRoute::route('cases.index') : null;
+    $ordersIndexRoute = auth()->check() ? \App\Support\PortalRoute::route('orders.index') : null;
     $chartIcons = [
         'onboarding' => 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z',
         'orders' => 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2',
@@ -83,6 +84,21 @@
                                             }
                                         }
                                     }
+                                    $canvasOrderLinks = [];
+                                    if (($chart['key'] ?? '') === 'orders' && $ordersIndexRoute) {
+                                        foreach ($chart['labels'] as $sliceIndex => $sliceLabel) {
+                                            if (($chart['values'][$sliceIndex] ?? 0) < 1) {
+                                                continue;
+                                            }
+                                            $orderStatus = $chart['order_statuses'][$sliceIndex] ?? null;
+                                            if ($orderStatus) {
+                                                $canvasOrderLinks[] = route(
+                                                    \App\Support\PortalRoute::name('orders.index'),
+                                                    ($dashboardFilters ?? new \App\Support\DashboardFilters())->toOrdersListingQueryArray($orderStatus)
+                                                );
+                                            }
+                                        }
+                                    }
                                 @endphp
                                 <canvas id="{{ $chart['id'] }}"
                                     aria-label="{{ $chart['title'] }}"
@@ -91,6 +107,7 @@
                                     data-chart-layout="{{ $layout }}"
                                     @if(!empty($chart['horizontal'])) data-chart-horizontal="1" @endif
                                     @if(($chart['key'] ?? '') === 'cases-stage' && $canvasStageLinks !== []) data-stage-links="{{ json_encode($canvasStageLinks) }}" @endif
+                                    @if(($chart['key'] ?? '') === 'orders' && $canvasOrderLinks !== []) data-order-links="{{ json_encode($canvasOrderLinks) }}" @endif
                                     data-labels="{{ json_encode($canvasLabels) }}"
                                     data-values="{{ json_encode($canvasValues) }}"
                                     data-colors="{{ json_encode($canvasColors) }}"
@@ -122,14 +139,27 @@
                                             ($dashboardFilters ?? new \App\Support\DashboardFilters())->toCasesListingQueryArray($stageFilter)
                                         );
                                     }
+                                    $orderStatus = $chart['order_statuses'][$i] ?? null;
+                                    $statusOrdersUrl = null;
+                                    if (($chart['key'] ?? '') === 'orders' && $orderStatus && $ordersIndexRoute) {
+                                        $statusOrdersUrl = route(
+                                            \App\Support\PortalRoute::name('orders.index'),
+                                            ($dashboardFilters ?? new \App\Support\DashboardFilters())->toOrdersListingQueryArray($orderStatus)
+                                        );
+                                    }
+                                    $breakdownUrl = $stageCasesUrl ?? $statusOrdersUrl;
+                                    $breakdownAria = $stageCasesUrl
+                                        ? "View {$label} cases in a new tab"
+                                        : ($statusOrdersUrl ? "View {$label} orders in a new tab" : null);
                                 @endphp
                                 <li
-                                    @if($stageCasesUrl)
+                                    @if($breakdownUrl)
                                         class="dashboard-chart-breakdown-item--linked"
-                                        data-cases-url="{{ $stageCasesUrl }}"
+                                        @if($stageCasesUrl) data-cases-url="{{ $stageCasesUrl }}" @endif
+                                        @if($statusOrdersUrl) data-orders-url="{{ $statusOrdersUrl }}" @endif
                                         role="link"
                                         tabindex="0"
-                                        aria-label="View {{ $label }} cases in a new tab"
+                                        aria-label="{{ $breakdownAria }}"
                                     @endif
                                 >
                                     <span class="dashboard-chart-dot" style="background: {{ $color }}"></span>

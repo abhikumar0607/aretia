@@ -103,7 +103,7 @@ class OrderController extends Controller
         $data = $request->validate($rules);
 
         $order = $this->orderService->createFromRow([
-            'company_email' => $company->email,
+            'company_name' => $company->name,
             'package_slug' => $package->slug,
             'subject_type' => $data['subject_type'] ?? null,
             'subject_name' => $data['subject_name'] ?? null,

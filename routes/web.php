@@ -52,6 +52,11 @@ Route::middleware('guest')->group(function () {
     Route::post('/login', [LoginController::class, 'login']);
     Route::get('/register', [RegisterController::class, 'show'])->name('register');
     Route::post('/register', [RegisterController::class, 'store']);
+    Route::get('/register/verify', [RegisterController::class, 'showVerify'])->name('register.verify');
+    Route::post('/register/verify', [RegisterController::class, 'verify'])->name('register.verify.submit');
+    Route::post('/register/resend-otp', [RegisterController::class, 'resendOtp'])
+        ->middleware('throttle:6,1')
+        ->name('register.resend-otp');
 
     Route::get('/forgot-password', [ForgotPasswordController::class, 'show'])->name('password.request');
     Route::post('/forgot-password', [ForgotPasswordController::class, 'send'])

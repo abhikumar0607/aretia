@@ -10,9 +10,9 @@
     'backLabel' => 'Back to orders',
     'templateRoute' => route('admin.orders.import.template'),
     'uploadRoute' => route('admin.orders.import.store'),
-    'step1Hint' => 'Admin template includes company_email to assign each row to a client.',
+    'step1Hint' => 'Admin template includes company_name to assign each row to a client.',
     'columns' => [
-        ['name' => 'company_email', 'required' => 'Yes', 'example' => 'client@aretia.test'],
+        ['name' => 'company_name', 'required' => 'Yes', 'example' => 'Acme Corp'],
         ['name' => 'package_slug', 'required' => 'Yes', 'example' => 'standard-risk-spectrum'],
         ['name' => 'due_date', 'required' => 'No', 'example' => '2026-06-15 (YYYY-MM-DD)'],
         ['name' => 'subject_type', 'required' => 'For non-custom', 'example' => 'individual / entity'],
