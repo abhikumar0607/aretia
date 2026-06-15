@@ -4,6 +4,7 @@ namespace App\Support;
 
 use App\Enums\UserRole;
 use App\Models\User;
+use Illuminate\Support\Facades\Route;
 
 class PortalRoute
 {
@@ -22,6 +23,20 @@ class PortalRoute
     public static function route(string $suffix, mixed $parameters = [], bool $absolute = true, ?User $user = null): string
     {
         return route(static::name($suffix, $user), $parameters, $absolute);
+    }
+
+    public static function has(string $suffix, ?User $user = null): bool
+    {
+        return Route::has(static::name($suffix, $user));
+    }
+
+    public static function routeIfExists(string $suffix, mixed $parameters = [], bool $absolute = true, ?User $user = null): ?string
+    {
+        if (! static::has($suffix, $user)) {
+            return null;
+        }
+
+        return static::route($suffix, $parameters, $absolute, $user);
     }
 
     public static function is(string $pattern, ?User $user = null): bool
