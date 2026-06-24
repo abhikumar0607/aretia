@@ -33,6 +33,7 @@
 <div id="toast-root" aria-live="polite"></div>
 @include('partials.alerts')
 <script src="{{ asset('js/toast.js') }}"></script>
+<script src="{{ asset('js/due-date-inputs.js') }}" defer></script>
 <script src="{{ asset('js/ajax-submit.js') }}" defer></script>
 <script src="{{ asset('js/portal.js') }}" defer></script>
 <script src="{{ asset('js/binary-upload.js') }}" defer></script>

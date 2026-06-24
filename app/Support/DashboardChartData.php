@@ -74,11 +74,9 @@ class DashboardChartData
                 true
             ), true),
             self::buildChart('client', 'reports', 'Reports on your cases', self::reportSlices(
-                fn (Builder $q) => $q->whereHas('caseFile', fn (Builder $c) => $c->where('company_id', $companyId)),
+                fn (Builder $q) => $q->where('company_id', $companyId),
                 $filters,
-                false,
-                true
-            )),
+            ), true),
         ];
     }
 
@@ -93,9 +91,9 @@ class DashboardChartData
         return [
             self::buildChart('analyst', 'cases-stage', 'My cases by stage', self::casesByStage($caseScope, $filters, false, true)),
             self::buildChart('analyst', 'reports', 'Reports on assigned cases', self::reportSlices(
-                fn (Builder $q) => $q->whereHas('caseFile', fn (Builder $c) => $c->forAnalyst($userId)),
+                fn (Builder $q) => $q->forAnalyst($userId),
                 $filters,
-                true
+                true,
             )),
         ];
     }
@@ -283,41 +281,41 @@ class DashboardChartData
     }
 
     /**
-     * @param  callable(Builder): void  $scope
+     * Cases with a delivered report vs cases still awaiting their first delivery.
+     *
+     * @param  callable(Builder): void  $caseScope
      * @return list<array{label: string, value: int, color: string}>
      */
     private static function reportSlices(
-        callable $scope,
+        callable $caseScope,
         ?DashboardFilters $filters = null,
         bool $assignedWorkload = false,
-        bool $companyCasesOnly = false,
+        bool $includeAllStatuses = false,
     ): array {
-        $base = Report::query();
-        $scope($base);
+        $cases = CaseFile::query();
+        $caseScope($cases);
 
         if ($filters) {
-            $filters->applyReportDateScope($base);
-
-            $base->whereHas('caseFile', function (Builder $case) use ($filters, $assignedWorkload, $companyCasesOnly) {
-                if ($assignedWorkload) {
-                    $filters->applyAssignedCaseScopeWithPeriod($case);
-                } elseif ($companyCasesOnly) {
-                    $filters->applyCaseScope($case);
-                } else {
-                    $filters->applyCaseScope($case);
-                }
-            });
+            if ($assignedWorkload) {
+                $filters->applyAssignedCaseScopeWithPeriod($cases);
+            } else {
+                $filters->applyCaseScope($cases);
+            }
         }
 
-        $delivered = (clone $base)->whereNotNull('delivered_at')->count();
-        $pending = (clone $base)->whereNull('delivered_at')->count();
+        $delivered = (clone $cases)
+            ->whereHas('latestReport', fn (Builder $q) => $q->whereNotNull('delivered_at'))
+            ->count();
+        $inProgress = (clone $cases)
+            ->whereDoesntHave('latestReport', fn (Builder $q) => $q->whereNotNull('delivered_at'))
+            ->count();
 
         $rows = [];
-        if ($delivered > 0) {
+        if ($delivered > 0 || $includeAllStatuses) {
             $rows[] = ['label' => 'Delivered', 'value' => $delivered, 'color' => '#059669'];
         }
-        if ($pending > 0) {
-            $rows[] = ['label' => 'In progress', 'value' => $pending, 'color' => '#f59e0b'];
+        if ($inProgress > 0 || $includeAllStatuses) {
+            $rows[] = ['label' => 'In progress', 'value' => $inProgress, 'color' => '#f59e0b'];
         }
 
         return $rows;
@@ -508,9 +506,9 @@ class DashboardChartData
             'reports' => [
                 'type' => 'bar',
                 'variant' => 'reports',
-                'subtitle' => 'Delivered vs in progress',
-                'layout' => 'bars-h',
-                'horizontal' => true,
+                'subtitle' => 'Cases with report delivered vs awaiting report',
+                'layout' => 'bars',
+                'horizontal' => false,
             ],
             'cases-status' => [
                 'type' => 'doughnut',

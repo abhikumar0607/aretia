@@ -54,10 +54,17 @@
         'showPeriodFilter' => true,
     ])
 
+    @include('partials.order-duplicate-selection-bar', [
+        'markDuplicatesRoute' => route('client.orders.mark-duplicate'),
+    ])
+
     <div class="data-table-wrap">
-        <table class="data-table">
+        <table class="data-table" data-order-duplicate-table>
             <thead>
                 <tr>
+                    <th class="cell-checkbox" scope="col">
+                        <input type="checkbox" id="order-select-all" class="order-select-all" aria-label="Select all on page">
+                    </th>
                     <th>Reference</th>
                     <th>Company</th>
                     <th>Package</th>
@@ -70,15 +77,13 @@
             <tbody>
             @forelse($orders as $order)
                 <tr class="data-table-row" onclick="window.location='{{ route('client.orders.show', $order) }}'">
+                    @include('partials.order-duplicate-checkbox', ['order' => $order])
                     <td>
-                        <div class="cell-primary">
-                            <a href="{{ route('client.orders.show', $order) }}" class="row-link" onclick="event.stopPropagation()">
-                                <span class="cell-ref">{{ $order->reference }}</span>
-                            </a>
-                            @if($order->caseFile)
-                                <span class="cell-sub">Case linked</span>
-                            @endif
-                        </div>
+                        @include('partials.order-reference-cell', [
+                            'order' => $order,
+                            'url' => route('client.orders.show', $order),
+                            'stopPropagation' => true,
+                        ])
                     </td>
                     <td>{{ $order->company?->name ?? '—' }}</td>
                     <td><span class="pill pill-package">{{ $order->package->name }}</span></td>
@@ -104,7 +109,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="7">
+                    <td colspan="8">
                         <div class="empty-state">
                             <div class="empty-state-icon">
                                 <svg width="32" height="32" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
@@ -129,4 +134,5 @@
 
 @push('scripts')
 <script src="{{ asset('js/listing-filters.js') }}" defer></script>
+<script src="{{ asset('js/order-duplicate-selection.js') }}" defer></script>
 @endpush

@@ -42,6 +42,18 @@
 
         if (!values.length) return;
 
+        var labelCount = parseInt(canvas.dataset.labelCount || labels.length, 10) || labels.length;
+        var visualWrap = canvas.closest('.dashboard-chart-visual');
+        if (visualWrap && isHorizontal) {
+            var barHeight = Math.max(160, Math.min(280, labelCount * 56));
+            visualWrap.style.setProperty('--chart-bar-h-height', barHeight + 'px');
+            visualWrap.style.height = barHeight + 'px';
+        }
+        if (visualWrap && chartType === 'bar' && !isHorizontal) {
+            var columnHeight = Math.max(180, Math.min(240, labelCount * 72));
+            visualWrap.style.height = columnHeight + 'px';
+        }
+
         var dataset = {
             data: values,
             backgroundColor: colors,
@@ -89,6 +101,7 @@
                     padding: 12,
                     cornerRadius: 10,
                     titleFont: { weight: '600' },
+                    position: 'nearest',
                     callbacks: {
                         label: function (ctx) {
                             var total = ctx.dataset.data.reduce(function (a, b) { return a + b; }, 0);
@@ -151,11 +164,12 @@
 
         if (chartType === 'bar') {
             options.indexAxis = isHorizontal ? 'y' : 'x';
-            options.layout = { padding: { left: 4, right: 12, top: 8, bottom: 8 } };
+            options.interaction = { mode: 'nearest', intersect: true, axis: isHorizontal ? 'y' : 'x' };
+            options.layout = { padding: { left: 8, right: 12, top: 8, bottom: 8 } };
             options.datasets = {
                 bar: {
-                    barPercentage: 0.72,
-                    categoryPercentage: 0.82,
+                    barPercentage: isHorizontal ? 0.65 : 0.55,
+                    categoryPercentage: isHorizontal ? 0.72 : 0.68,
                 },
             };
             options.scales = {
@@ -180,19 +194,29 @@
                         maxRotation: 0,
                         autoSkip: false,
                         display: isHorizontal,
+                        padding: 6,
                     },
                 },
             };
             if (!isHorizontal) {
                 options.scales.x.ticks.display = true;
+                options.scales.x.ticks.maxRotation = 0;
+                options.scales.x.ticks.autoSkip = false;
                 options.scales.y.ticks.display = true;
             }
         }
 
-        new Chart(canvas, {
+        var chartInstance = new Chart(canvas, {
             type: chartType,
             data: { labels: labels, datasets: [dataset] },
             options: options,
         });
+
+        if (typeof ResizeObserver !== 'undefined' && visualWrap) {
+            var resizeObserver = new ResizeObserver(function () {
+                chartInstance.resize();
+            });
+            resizeObserver.observe(visualWrap);
+        }
     });
 })();

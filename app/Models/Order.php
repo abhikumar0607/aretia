@@ -15,6 +15,7 @@ class Order extends Model
         'reference', 'company_id', 'user_id', 'service_package_id',
         'status', 'subject_type', 'subject_name', 'subject_details',
         'custom_request', 'due_date', 'confirmed_at', 'rejection_reason',
+        'marked_as_duplicate',
     ];
 
     protected function casts(): array
@@ -24,7 +25,14 @@ class Order extends Model
             'subject_type' => SubjectType::class,
             'due_date' => 'date',
             'confirmed_at' => 'datetime',
+            'marked_as_duplicate' => 'boolean',
         ];
+    }
+
+    public function showsDuplicateBadge(): bool
+    {
+        return (bool) $this->marked_as_duplicate
+            || (bool) ($this->getAttribute('has_duplicate_subject') ?? false);
     }
 
     public function company(): BelongsTo

@@ -7,6 +7,7 @@ use App\Enums\UserRole;
 use App\Models\CaseFile;
 use App\Models\User;
 use App\Notifications\CaseTeamAssignedNotification;
+use App\Support\DueDateRules;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
@@ -103,11 +104,17 @@ class CaseTeamAssignmentService
         foreach (EmployeeType::cases() as $type) {
             $hasMembers = ! empty($memberIdsByType[$type->value]);
             if ($type === EmployeeType::Analyst || $hasMembers) {
-                $rules["due_dates.{$type->value}"] = ['required', 'date'];
+                $rules["due_dates.{$type->value}"] = DueDateRules::required();
             }
         }
 
-        $validator = validator(['due_dates' => $dueDates], $rules);
+        $messages = [];
+        foreach (EmployeeType::cases() as $type) {
+            $messages["due_dates.{$type->value}.after_or_equal"] =
+                'The '.$type->label().' due date must be today or a future date.';
+        }
+
+        $validator = validator(['due_dates' => $dueDates], $rules, $messages);
 
         if ($validator->fails()) {
             throw new ValidationException($validator);

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Enums\CompanyStatus;
 use App\Enums\OrderStatus;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\MarksOrderDuplicate;
 use App\Models\Company;
 use App\Models\Order;
 use App\Models\OrderDocument;
@@ -14,6 +15,7 @@ use App\Services\OrderCreationService;
 use App\Services\OrderDueDateService;
 use App\Services\PublicUploadService;
 use App\Support\CompanyFilter;
+use App\Support\DueDateRules;
 use App\Support\OrderDuplicateSubjects;
 use App\Support\OrderListFilters;
 use App\Support\Toast;
@@ -25,6 +27,8 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class OrderController extends Controller
 {
+    use MarksOrderDuplicate;
+
     public function __construct(
         private OrderDueDateService $dueDates,
         private OrderApprovalService $approval,
@@ -76,7 +80,7 @@ class OrderController extends Controller
         $rules = [
             'company_id' => ['required', 'exists:companies,id'],
             'service_package_id' => ['required', 'exists:service_packages,id'],
-            'due_date' => ['nullable', 'date'],
+            'due_date' => DueDateRules::optional(),
         ];
 
         if ($package->is_custom) {
@@ -100,7 +104,7 @@ class OrderController extends Controller
             ];
         }
 
-        $data = $request->validate($rules);
+        $data = $request->validate($rules, DueDateRules::messages());
 
         $order = $this->orderService->createFromRow([
             'company_name' => $company->name,
@@ -214,8 +218,8 @@ class OrderController extends Controller
         }
 
         $data = $request->validate([
-            'due_date' => ['required', 'date'],
-        ]);
+            'due_date' => DueDateRules::required(),
+        ], DueDateRules::messages());
 
         $hadDueDate = $order->due_date !== null;
 
