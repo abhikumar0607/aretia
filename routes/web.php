@@ -129,6 +129,7 @@ Route::middleware('auth')->group(function () {
             Route::get('/orders/{order}/documents/{document}/preview', [AdminOrderController::class, 'previewDocument'])->name('orders.documents.preview');
             Route::get('/orders/{order}/documents/{document}/download', [AdminOrderController::class, 'downloadDocument'])->name('orders.documents.download');
             Route::patch('/orders/{order}/due-date', [AdminOrderController::class, 'updateDueDate'])->name('orders.due-date');
+            Route::post('/orders/mark-duplicate', [AdminOrderController::class, 'markDuplicates'])->name('orders.mark-duplicate');
         });
 
         Route::middleware('permission:orders.approve')->group(function () {
@@ -219,6 +220,7 @@ Route::middleware('auth')->group(function () {
             Route::get('/orders/{order}/documents/{document}/preview', [SuperAdminOrderController::class, 'previewDocument'])->name('orders.documents.preview');
             Route::get('/orders/{order}/documents/{document}/download', [SuperAdminOrderController::class, 'downloadDocument'])->name('orders.documents.download');
             Route::patch('/orders/{order}/due-date', [SuperAdminOrderController::class, 'updateDueDate'])->name('orders.due-date');
+            Route::post('/orders/mark-duplicate', [SuperAdminOrderController::class, 'markDuplicates'])->name('orders.mark-duplicate');
         });
 
         Route::middleware('permission:orders.approve')->group(function () {
@@ -300,6 +302,7 @@ Route::middleware('auth')->group(function () {
             Route::post('/orders', [ClientOrderController::class, 'store'])->name('orders.store');
             Route::get('/orders/{order}', [ClientOrderController::class, 'show'])->name('orders.show');
             Route::patch('/orders/{order}/due-date', [ClientOrderController::class, 'updateDueDate'])->name('orders.due-date');
+            Route::post('/orders/mark-duplicate', [ClientOrderController::class, 'markDuplicates'])->name('orders.mark-duplicate');
             Route::post('/orders/{order}/documents', [ClientOrderController::class, 'storeDocument'])->name('orders.documents.store');
             Route::get('/orders/{order}/documents/{document}/preview', [ClientOrderController::class, 'previewDocument'])->name('orders.documents.preview');
             Route::get('/orders/{order}/documents/{document}/download', [ClientOrderController::class, 'downloadDocument'])->name('orders.documents.download');

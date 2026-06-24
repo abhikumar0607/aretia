@@ -17,11 +17,14 @@ class AuditLogFilters
     {
         self::applyCompany($query, $request);
         self::applyTextSearch($query, $request);
+        DashboardFilters::fromRequestQuery($request)->applyDateScope($query, 'created_at');
     }
 
     public static function hasActiveFilters(Request $request): bool
     {
-        return $request->filled('company') || $request->filled('q');
+        return $request->filled('company')
+            || $request->filled('q')
+            || ! DashboardFilters::fromRequestQuery($request)->isDefault();
     }
 
     private static function applyCompany(Builder $query, Request $request): void

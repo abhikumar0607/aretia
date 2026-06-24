@@ -21,8 +21,10 @@
                 'options' => $companyOptions,
             ],
         ],
-        'showDueDateRange' => false,
-        'preserve' => ['company', 'q'],
+        'showPeriodFilter' => true,
+        'periodSelectId' => 'audit-filter-period',
+        'customDatesId' => 'audit-custom-dates',
+        'preserve' => ['company', 'q', 'period', 'date_from', 'date_to'],
     ])
 
     <div class="listing-panel-head">

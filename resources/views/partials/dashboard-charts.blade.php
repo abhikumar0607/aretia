@@ -18,7 +18,12 @@
     </div>
 
     @php
-        $chartGridClass = count($charts) <= 2 ? 'dashboard-charts-grid--pair' : 'dashboard-charts-grid--quad';
+        $chartCount = count($charts);
+        $chartGridClass = match (true) {
+            $chartCount === 3 => 'dashboard-charts-grid--triple',
+            $chartCount <= 2 => 'dashboard-charts-grid--pair',
+            default => 'dashboard-charts-grid--quad',
+        };
     @endphp
     <div class="dashboard-charts-grid {{ $chartGridClass }}">
         @foreach($charts as $chart)
@@ -111,7 +116,8 @@
                                     data-labels="{{ json_encode($canvasLabels) }}"
                                     data-values="{{ json_encode($canvasValues) }}"
                                     data-colors="{{ json_encode($canvasColors) }}"
-                                    data-total="{{ array_sum($canvasValues) }}"></canvas>
+                                    data-total="{{ array_sum($canvasValues) }}"
+                                    data-label-count="{{ count($canvasLabels) }}"></canvas>
                             </div>
                             @if($layout === 'ring')
                                 <div class="dashboard-chart-center" aria-hidden="true">
@@ -164,11 +170,6 @@
                                 >
                                     <span class="dashboard-chart-dot" style="background: {{ $color }}"></span>
                                     <span class="dashboard-chart-breakdown-label">{{ $label }}</span>
-                                    @if(in_array($layout, ['bars', 'bars-h'], true))
-                                        <span class="dashboard-chart-bar-track" aria-hidden="true">
-                                            <span class="dashboard-chart-bar-fill" style="width: {{ $pct }}%; background: {{ $color }}"></span>
-                                        </span>
-                                    @endif
                                     <span class="dashboard-chart-breakdown-meta">{{ $value }}@if($total > 0) · {{ $pct }}%@endif</span>
                                 </li>
                             @endforeach

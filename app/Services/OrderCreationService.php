@@ -27,7 +27,7 @@ class OrderCreationService
      */
     public function createFromRow(array $data, User $actingUser, bool $forAdmin = false): Order
     {
-        $packageSlug = Str::slug(trim((string) ($data['package_slug'] ?? '')));
+        $packageSlug = $this->resolvePackageSlug((string) ($data['package_slug'] ?? ''));
         if ($packageSlug === '') {
             throw new \InvalidArgumentException('package_slug is required.');
         }
@@ -131,6 +131,20 @@ class OrderCreationService
         }
 
         return $order;
+    }
+
+    private function resolvePackageSlug(string $raw): string
+    {
+        $raw = trim($raw);
+        if ($raw === '') {
+            return '';
+        }
+
+        if (str_contains($raw, ' — ')) {
+            return Str::slug(trim(explode(' — ', $raw, 2)[0]));
+        }
+
+        return Str::slug($raw);
     }
 
     private function createCaseForOrder(Order $order): CaseFile

@@ -73,11 +73,11 @@ function fileToBase64(file) {
 async function buildFormBody(form) {
     const body = new FormData(form);
 
-    if (form.id !== 'order-form') {
+    if (form.id === 'bulk-import-form' || form.querySelector('input[name="attachments[]"]')) {
         return body;
     }
 
-    const fileInput = document.getElementById('order_documents');
+    const fileInput = form.querySelector('[data-order-documents]');
     const files = fileInput?.files;
     if (files?.length) {
         for (let i = 0; i < files.length; i++) {

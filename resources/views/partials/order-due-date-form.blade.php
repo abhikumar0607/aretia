@@ -1,6 +1,6 @@
 @php
     $dueDateAction = $dueDateAction ?? null;
-    $dueDateValue = old('due_date', $order->due_date?->format('Y-m-d'));
+    $dueDateValue = \App\Support\DueDateRules::formValue(old('due_date', $order->due_date?->format('Y-m-d')));
 @endphp
 @if($dueDateAction)
 <section class="card order-due-date-card">
@@ -17,8 +17,8 @@
         @method('PATCH')
         <div class="form-field">
             <label for="order-due-date">{{ $order->due_date ? 'Update due date' : 'Set due date' }}</label>
-            <input type="date" id="order-due-date" name="due_date" value="{{ $dueDateValue }}" min="{{ now()->format('Y-m-d') }}">
-            <p class="form-field-hint">Optional. Clients and the assigned analyst are notified by email and in the portal when a due date is saved.</p>
+            <input type="date" class="due-date-future-only" id="order-due-date" name="due_date" value="{{ $dueDateValue }}" min="{{ \App\Support\DueDateRules::minDate() }}">
+            <p class="form-field-hint">Today or a future date only. Clients and the assigned analyst are notified by email and in the portal when a due date is saved.</p>
         </div>
         <div class="order-due-date-actions">
             <button type="submit" class="btn btn-primary btn-sm">Save due date</button>

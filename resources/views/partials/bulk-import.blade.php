@@ -28,20 +28,31 @@
         <div class="import-step-body">
             <h3>Upload &amp; import</h3>
             <p>Excel (.xlsx, .xls) or CSV — each row creates one order and case.</p>
-            <form method="POST" action="{{ $uploadRoute }}" enctype="multipart/form-data" class="import-upload-form">
+            <form method="POST" action="{{ $uploadRoute }}" enctype="multipart/form-data" class="import-upload-form" id="bulk-import-form">
                 @csrf
                 <div class="import-file-zone" data-dropzone>
                     <input type="file" id="import_file" name="file" accept=".xlsx,.xls,.csv" required>
                     <div class="import-file-zone-inner">
                         <svg width="28" height="28" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
-                        <span class="import-file-label">Drop file here or <strong>browse</strong></span>
+                        <span class="import-file-label">Drop spreadsheet here or <strong>browse</strong></span>
                         <span class="import-file-name" data-file-name></span>
                     </div>
                 </div>
-                <button type="submit" class="btn btn-primary btn-lg import-submit-btn">
-                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
-                    Import orders
-                </button>
+
+                <div class="import-documents-section">
+                    @include('partials.order-documents-field', [
+                        'inputId' => 'bulk_import_documents',
+                        'inputName' => 'attachments[]',
+                        'hint' => 'Optional. The same file(s) will be attached to every order created in this import.',
+                    ])
+                </div>
+
+                <div class="import-form-actions">
+                    <button type="submit" class="btn btn-primary btn-lg import-submit-btn">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                        Import orders
+                    </button>
+                </div>
             </form>
         </div>
     </div>

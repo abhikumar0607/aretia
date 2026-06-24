@@ -52,10 +52,17 @@
         'showPeriodFilter' => true,
     ])
 
+    @include('partials.order-duplicate-selection-bar', [
+        'markDuplicatesRoute' => route('superadmin.orders.mark-duplicate'),
+    ])
+
     <div class="data-table-wrap">
-        <table class="data-table">
+        <table class="data-table" data-order-duplicate-table>
             <thead>
                 <tr>
+                    <th class="cell-checkbox" scope="col">
+                        <input type="checkbox" id="order-select-all" class="order-select-all" aria-label="Select all on page">
+                    </th>
                     <th>Reference</th>
                     <th>Subject</th>
                     <th>Company</th>
@@ -68,10 +75,12 @@
             <tbody>
             @forelse($orders as $order)
                 <tr class="data-table-row">
+                    @include('partials.order-duplicate-checkbox', ['order' => $order])
                     <td>
-                        <a href="{{ route('superadmin.orders.show', $order) }}" class="row-link">
-                            <span class="cell-ref">{{ $order->reference }}</span>
-                        </a>
+                        @include('partials.order-reference-cell', [
+                            'order' => $order,
+                            'url' => route('superadmin.orders.show', $order),
+                        ])
                     </td>
                     <td>@include('partials.order-subject-cell', ['order' => $order])</td>
                     <td>{{ $order->company->name }}</td>
@@ -86,7 +95,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="7">
+                    <td colspan="8">
                         <div class="empty-state">
                             @if(\App\Support\OrderListFilters::hasActiveFilters(request()))
                                 <h3>No results</h3>
@@ -110,5 +119,6 @@
 
 @push('scripts')
 <script src="{{ asset('js/listing-filters.js') }}" defer></script>
+<script src="{{ asset('js/order-duplicate-selection.js') }}" defer></script>
 @endpush
 

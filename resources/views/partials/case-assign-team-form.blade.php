@@ -18,10 +18,10 @@
                         ($teamByType[$employeeType->value] ?? collect())->pluck('id')->all()
                     );
                     $isAnalyst = $employeeType === \App\Enums\EmployeeType::Analyst;
-                    $dueDateValue = old(
+                    $dueDateValue = \App\Support\DueDateRules::formValue(old(
                         'due_dates.'.$employeeType->value,
                         $teamDueDates[$employeeType->value] ?? $case->order->due_date?->format('Y-m-d')
-                    );
+                    ));
                 @endphp
 
                 <div class="case-assign-team-role" data-role="{{ $employeeType->value }}" @unless($isAnalyst) data-requires-analyst @endunless>
@@ -50,13 +50,15 @@
                             </label>
                             <input
                                 type="date"
+                                class="due-date-future-only"
                                 name="due_dates[{{ $employeeType->value }}]"
                                 id="due_date_{{ $employeeType->value }}"
                                 value="{{ $dueDateValue }}"
-                                min="{{ now()->format('Y-m-d') }}"
+                                min="{{ \App\Support\DueDateRules::minDate() }}"
                                 @if($isAnalyst) required @endif
                                 data-role-due-date="{{ $employeeType->value }}"
                             >
+                            <p class="form-field-hint">Today or a future date only.</p>
                         </div>
                     </div>
                 </div>

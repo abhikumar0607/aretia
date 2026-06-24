@@ -64,4 +64,25 @@ return Application::configure(basePath: dirname(__DIR__))
                 ], $e->getStatusCode());
             }
         });
+
+        $exceptions->render(function (\Throwable $e, $request) use ($ajaxToast) {
+            if (! $ajaxToast($request)) {
+                return null;
+            }
+
+            if ($e instanceof \Illuminate\Validation\ValidationException
+                || $e instanceof \Symfony\Component\HttpKernel\Exception\HttpException) {
+                return null;
+            }
+
+            report($e);
+
+            return response()->json([
+                'toast' => \App\Support\Toast::payload(
+                    $e->getMessage() ?: 'Something went wrong. Please try again.',
+                    'error',
+                    'Error'
+                ),
+            ], 500);
+        });
     })->create();

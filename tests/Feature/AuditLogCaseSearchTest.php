@@ -231,6 +231,43 @@ class AuditLogCaseSearchTest extends TestCase
         $response->assertSee('<strong>12</strong>', false);
     }
 
+    public function test_audit_trail_can_be_filtered_by_time_period(): void
+    {
+        [$caseA, , $admin] = $this->makeAuditScenario();
+
+        AuditLog::query()->create([
+            'user_id' => $admin->id,
+            'action' => 'case.stage_updated',
+            'auditable_type' => CaseFile::class,
+            'auditable_id' => $caseA->id,
+            'properties' => ['case_reference' => $caseA->reference],
+            'ip_address' => '127.0.0.1',
+            'created_at' => now(),
+        ]);
+
+        $old = AuditLog::query()->create([
+            'user_id' => $admin->id,
+            'action' => 'report.downloaded',
+            'auditable_type' => CaseFile::class,
+            'auditable_id' => $caseA->id,
+            'properties' => ['case_reference' => $caseA->reference],
+            'ip_address' => '127.0.0.1',
+        ]);
+        $old->created_at = now()->subMonths(2);
+        $old->save();
+
+        $this->actingAs($admin, 'web')
+            ->get(route('admin.audit.index', [
+                'period' => 'custom',
+                'date_from' => now()->subMonth()->toDateString(),
+                'date_to' => now()->toDateString(),
+            ]))
+            ->assertOk()
+            ->assertSee('Case stage updated')
+            ->assertDontSee('Report downloaded')
+            ->assertDontSee($old->created_at->format('d M Y'));
+    }
+
     /**
      * @return array{0: CaseFile, 1: CaseFile, 2: User}
      */

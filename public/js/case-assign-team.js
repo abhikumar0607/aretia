@@ -75,8 +75,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     input.disabled = !enabled;
                     if (!enabled) {
                         input.value = '';
+                    } else if (window.clampDueDateInput) {
+                        window.clampDueDateInput(input);
                     }
                 });
+
+                if (enabled && window.bindDueDateInputs) {
+                    window.bindDueDateInputs(roleEl);
+                }
 
                 const trigger = roleEl.querySelector('.ms-trigger');
                 if (trigger) {

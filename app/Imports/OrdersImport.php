@@ -4,11 +4,13 @@ namespace App\Imports;
 
 use App\Models\User;
 use App\Services\OrderCreationService;
+use App\Support\OrderImportRowNormalizer;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
+use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 
-class OrdersImport implements ToCollection, WithHeadingRow
+class OrdersImport implements WithMultipleSheets
 {
     /** @var array<int, array{row: int, message: string}> */
     public array $errors = [];
@@ -19,24 +21,44 @@ class OrdersImport implements ToCollection, WithHeadingRow
         private User $actingUser,
         private bool $forAdmin,
         private OrderCreationService $orderService,
+        private \App\Services\OrderDocumentService $documentService,
+        /** @var list<array{name: string, data: string}> */
+        private array $documents = [],
     ) {}
 
-    public function collection(Collection $rows): void
+    public function sheets(): array
     {
+        return [
+            0 => new OrdersSheetImport($this),
+        ];
+    }
+
+    public function processRows(Collection $rows): void
+    {
+        $pastDueRows = OrderImportRowNormalizer::pastDueDateRowNumbers($rows);
+        if ($pastDueRows !== []) {
+            throw new \InvalidArgumentException(
+                OrderImportRowNormalizer::pastDueDateMessage($pastDueRows)
+            );
+        }
+
         foreach ($rows as $index => $row) {
             $rowNumber = $index + 2;
-            $data = $row->toArray();
+            $data = OrderImportRowNormalizer::normalizeKeys($row->toArray());
 
             if ($this->isEmptyRow($data)) {
                 continue;
             }
 
             try {
-                $this->orderService->createFromRow(
+                $order = $this->orderService->createFromRow(
                     $this->sanitizeRow($data),
                     $this->actingUser,
                     $this->forAdmin,
                 );
+
+                $this->documentService->attachMany($order, $this->actingUser->id, $this->documents);
+
                 $this->imported++;
             } catch (\Throwable $e) {
                 $this->errors[] = [
@@ -48,8 +70,6 @@ class OrdersImport implements ToCollection, WithHeadingRow
     }
 
     /**
-     * Client imports always use the logged-in user's company — ignore any company column in the sheet.
-     *
      * @param  array<string, mixed>  $data
      * @return array<string, mixed>
      */

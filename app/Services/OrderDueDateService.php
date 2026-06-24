@@ -6,10 +6,12 @@ use App\Enums\UserRole;
 use App\Models\Order;
 use App\Models\User;
 use App\Notifications\OrderDueDateSetNotification;
+use App\Support\DueDateRules;
 use App\Support\SpreadsheetDateParser;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Validation\ValidationException;
 
 class OrderDueDateService
 {
@@ -22,6 +24,12 @@ class OrderDueDateService
 
     public function apply(Order $order, ?Carbon $newDueDate, User $actor, bool $isUpdate): bool
     {
+        if ($newDueDate && $newDueDate->startOfDay()->lt(now()->startOfDay())) {
+            throw ValidationException::withMessages([
+                'due_date' => DueDateRules::messages()['after_or_equal'],
+            ]);
+        }
+
         $previous = $order->due_date?->format('Y-m-d');
         $next = $newDueDate?->format('Y-m-d');
 
