@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@yield('title', 'Aretia')</title>
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    @include('partials.favicons')
     <link rel="stylesheet" href="{{ asset('css/portal.css') }}">
 </head>
 <body>
