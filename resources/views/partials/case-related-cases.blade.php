@@ -24,6 +24,7 @@
             <thead>
                 <tr>
                     <th>Case reference</th>
+                    <th>Subject</th>
                     <th>Package</th>
                     <th>Confirmed</th>
                     <th>Due date</th>
@@ -38,6 +39,7 @@
                                 <span class="cell-ref">{{ $related->reference }}</span>
                             </a>
                         </td>
+                        <td><span class="cell-subject">{{ $related->order->subject_name ?? 'Custom' }}</span></td>
                         <td><span class="pill pill-package">{{ $related->order->package->name }}</span></td>
                         <td>
                             <span class="cell-date">
