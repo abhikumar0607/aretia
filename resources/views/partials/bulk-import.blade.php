@@ -43,7 +43,7 @@
                     @include('partials.order-documents-field', [
                         'inputId' => 'bulk_import_documents',
                         'inputName' => 'attachments[]',
-                        'hint' => 'Optional. The same file(s) will be attached to every order created in this import.',
+                        'hint' => 'Optional. PDF, Word, images, or ZIP (max '.\App\Services\PublicUploadService::MAX_MB.' MB each). Multiple files allowed; ZIP contents are extracted. The same file(s) attach to every order in this import.',
                     ])
                 </div>
 

@@ -259,10 +259,10 @@ class DashboardChartData
     private static function usersByRoleSlices(): array
     {
         $colors = [
-            UserRole::SuperAdmin->value => '#7c3aed',
-            UserRole::Admin->value => '#4f46e5',
+            UserRole::SuperAdmin->value => '#073D82',
+            UserRole::Admin->value => '#094FA4',
             UserRole::Client->value => '#059669',
-            UserRole::Analyst->value => '#2563eb',
+            UserRole::Analyst->value => '#0B5CB8',
         ];
 
         $rows = [];
@@ -407,7 +407,7 @@ class DashboardChartData
             $rows[] = [
                 'label' => ucfirst($status),
                 'value' => $count,
-                'color' => $status === 'open' ? '#4f46e5' : '#64748b',
+                'color' => $status === 'open' ? '#094FA4' : '#64748b',
             ];
         }
 

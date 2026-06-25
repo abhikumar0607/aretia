@@ -59,7 +59,7 @@
             text-transform: uppercase;
             letter-spacing: 0.03em;
         }
-        .badge-superadmin { background: #7c3aed; color: #fff; }
+        .badge-superadmin { background: #073D82; color: #fff; }
         .badge-admin { background: #2563eb; color: #fff; }
         .badge-client { background: #059669; color: #fff; }
         .badge-analyst { background: #d97706; color: #fff; }

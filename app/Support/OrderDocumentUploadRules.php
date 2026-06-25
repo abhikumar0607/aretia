@@ -8,6 +8,9 @@ use Illuminate\Http\UploadedFile;
 
 class OrderDocumentUploadRules
 {
+    /** @var list<string> */
+    public const ALLOWED_EXTENSIONS = ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png', 'zip'];
+
     /**
      * @return array<string, mixed>
      */
@@ -18,8 +21,26 @@ class OrderDocumentUploadRules
             'documents.*.name' => ['required_with:documents', 'string', 'max:255'],
             'documents.*.data' => ['required_with:documents', 'string'],
             'attachments' => ['nullable', 'array'],
-            'attachments.*' => ['file', 'max:'.(PublicUploadService::MAX_MB * 1024)],
+            'attachments.*' => [
+                'file',
+                'max:'.(PublicUploadService::MAX_MB * 1024),
+                self::allowedFileRule(),
+            ],
         ];
+    }
+
+    private static function allowedFileRule(): \Closure
+    {
+        return function (string $attribute, mixed $value, \Closure $fail): void {
+            if (! $value instanceof UploadedFile) {
+                return;
+            }
+
+            $ext = strtolower($value->getClientOriginalExtension());
+            if (! in_array($ext, self::ALLOWED_EXTENSIONS, true)) {
+                $fail('Only PDF, Word, images, and ZIP files are allowed.');
+            }
+        };
     }
 
     /**
@@ -39,8 +60,10 @@ class OrderDocumentUploadRules
      * @param  array<int, UploadedFile|null>  $files
      * @return list<array{name: string, binary: string}>
      */
-    private static function payloadsFromUploadedFiles(array $files): array
+    public static function payloadsFromUploadedFiles(array $files): array
     {
+        /** @var PublicUploadService $uploads */
+        $uploads = app(PublicUploadService::class);
         $payloads = [];
 
         foreach ($files as $file) {
@@ -53,8 +76,22 @@ class OrderDocumentUploadRules
                 continue;
             }
 
+            $name = $file->getClientOriginalName();
+            $ext = strtolower($file->getClientOriginalExtension());
+
+            if ($ext === 'zip') {
+                foreach ($uploads->unzipBinary($binary) as $inner) {
+                    $payloads[] = [
+                        'name' => $inner['name'],
+                        'binary' => $inner['binary'],
+                    ];
+                }
+
+                continue;
+            }
+
             $payloads[] = [
-                'name' => $file->getClientOriginalName(),
+                'name' => $name,
                 'binary' => $binary,
             ];
         }

@@ -137,4 +137,83 @@ class ClientBulkOrderImportTest extends TestCase
         $this->assertDatabaseCount('order_documents', 2);
         $this->assertDatabaseHas('order_documents', ['original_name' => 'supporting-brief.pdf']);
     }
+
+    public function test_bulk_import_attaches_multiple_files_to_every_order(): void
+    {
+        $this->seed(ServicePackageSeeder::class);
+
+        $company = Company::query()->create([
+            'name' => 'Acme Corp',
+            'status' => CompanyStatus::Active,
+        ]);
+
+        $client = User::factory()->create([
+            'role' => UserRole::Client,
+            'company_id' => $company->id,
+            'onboarding_status' => OnboardingStatus::Active,
+            'is_active' => true,
+        ]);
+
+        $xlsx = ExcelDownload::xlsx(new OrdersTemplateExport(forAdmin: false), 'template.xlsx')->getContent();
+        $file = UploadedFile::fake()->createWithContent('orders.xlsx', $xlsx);
+
+        $this->actingAs($client, 'web')
+            ->post(route('client.orders.import.store'), [
+                'file' => $file,
+                'attachments' => [
+                    UploadedFile::fake()->create('brief-a.pdf', 100, 'application/pdf'),
+                    UploadedFile::fake()->create('brief-b.pdf', 100, 'application/pdf'),
+                ],
+            ], ['Accept' => 'application/json'])
+            ->assertOk()
+            ->assertJsonPath('toast.type', 'success');
+
+        $this->assertDatabaseCount('orders', 2);
+        $this->assertDatabaseCount('order_documents', 4);
+        $this->assertDatabaseHas('order_documents', ['original_name' => 'brief-a.pdf']);
+        $this->assertDatabaseHas('order_documents', ['original_name' => 'brief-b.pdf']);
+    }
+
+    public function test_bulk_import_extracts_zip_and_attaches_files_to_every_order(): void
+    {
+        $this->seed(ServicePackageSeeder::class);
+
+        $company = Company::query()->create([
+            'name' => 'Acme Corp',
+            'status' => CompanyStatus::Active,
+        ]);
+
+        $client = User::factory()->create([
+            'role' => UserRole::Client,
+            'company_id' => $company->id,
+            'onboarding_status' => OnboardingStatus::Active,
+            'is_active' => true,
+        ]);
+
+        $zipPath = tempnam(sys_get_temp_dir(), 'aretia-bulk-zip-');
+        $zip = new \ZipArchive();
+        $zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
+        $zip->addFromString('inside-a.pdf', '%PDF-1.4 bulk zip test');
+        $zip->addFromString('inside-b.pdf', '%PDF-1.4 bulk zip test two');
+        $zip->close();
+
+        $xlsx = ExcelDownload::xlsx(new OrdersTemplateExport(forAdmin: false), 'template.xlsx')->getContent();
+        $file = UploadedFile::fake()->createWithContent('orders.xlsx', $xlsx);
+        $zipFile = UploadedFile::fake()->createWithContent('supporting-docs.zip', (string) file_get_contents($zipPath));
+
+        $this->actingAs($client, 'web')
+            ->post(route('client.orders.import.store'), [
+                'file' => $file,
+                'attachments' => [$zipFile],
+            ], ['Accept' => 'application/json'])
+            ->assertOk()
+            ->assertJsonPath('toast.type', 'success');
+
+        $this->assertDatabaseCount('orders', 2);
+        $this->assertDatabaseCount('order_documents', 4);
+        $this->assertDatabaseHas('order_documents', ['original_name' => 'inside-a.pdf']);
+        $this->assertDatabaseHas('order_documents', ['original_name' => 'inside-b.pdf']);
+
+        @unlink($zipPath);
+    }
 }

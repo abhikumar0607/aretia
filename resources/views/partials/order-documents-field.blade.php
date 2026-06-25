@@ -1,6 +1,6 @@
 <div class="form-field order-documents-field">
     <label>Supporting documents</label>
-    <p class="form-field-hint">{{ $hint ?? 'PDF, Word, or images — max ' . \App\Services\PublicUploadService::MAX_MB . ' MB each. You can add multiple files.' }}</p>
+    <p class="form-field-hint">{{ $hint ?? 'PDF, Word, images, or ZIP — max ' . \App\Services\PublicUploadService::MAX_MB . ' MB each. Add multiple files; ZIP contents are extracted automatically.' }}</p>
     <div class="import-file-zone order-file-zone" data-dropzone>
         <input
             type="file"

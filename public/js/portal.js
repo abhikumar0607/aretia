@@ -59,12 +59,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const setDroppedFiles = (input, fileList) => {
         if (!fileList?.length) return;
-        if (input.multiple) {
-            input.files = fileList;
-            return;
-        }
+
         const dt = new DataTransfer();
-        dt.items.add(fileList[0]);
+        const limit = input.multiple ? fileList.length : 1;
+
+        for (let i = 0; i < limit; i++) {
+            const file = fileList[i];
+            if (file) {
+                dt.items.add(file);
+            }
+        }
+
         input.files = dt.files;
     };
 

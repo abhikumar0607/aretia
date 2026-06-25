@@ -10,6 +10,22 @@ function fileToBase64(file) {
     });
 }
 
+function setDroppedFiles(input, fileList) {
+    if (!fileList?.length) return;
+
+    const dt = new DataTransfer();
+    const limit = input.multiple ? fileList.length : 1;
+
+    for (let i = 0; i < limit; i++) {
+        const file = fileList[i];
+        if (file) {
+            dt.items.add(file);
+        }
+    }
+
+    input.files = dt.files;
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('[data-dropzone]').forEach((zone) => {
         const input = zone.querySelector('input[type="file"]');
@@ -40,7 +56,7 @@ document.addEventListener('DOMContentLoaded', () => {
             e.preventDefault();
             zone.classList.remove('dragover');
             if (e.dataTransfer.files?.length) {
-                input.files = e.dataTransfer.files;
+                setDroppedFiles(input, e.dataTransfer.files);
                 show();
             }
         });

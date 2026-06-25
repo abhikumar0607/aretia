@@ -3,11 +3,11 @@
     $accent = $accent ?? 'primary';
 
     $accentMap = [
-        'primary' => ['#4f46e5', '#6366f1', '#eef2ff', '#4338ca'],
+        'primary' => ['#094FA4', '#0B5CB8', '#E8F1FA', '#073D82'],
         'success' => ['#059669', '#10b981', '#ecfdf5', '#047857'],
         'danger'  => ['#dc2626', '#ef4444', '#fef2f2', '#b91c1c'],
         'warning' => ['#d97706', '#f59e0b', '#fffbeb', '#b45309'],
-        'info'    => ['#2563eb', '#3b82f6', '#eff6ff', '#1d4ed8'],
+        'info'    => ['#094FA4', '#3B8FD9', '#E8F1FA', '#073D82'],
     ];
     [$accentColor, $accentLight, $accentSoft, $accentDark] = $accentMap[$accent] ?? $accentMap['primary'];
 
