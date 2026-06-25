@@ -67,11 +67,11 @@ class CaseWorkflow
     public static function clientStageColor(?string $internalSlug): string
     {
         return match (self::clientStageSlug($internalSlug)) {
-            self::CLIENT_STAGE_ORDER_CONFIRMED => '#6366f1',
+            self::CLIENT_STAGE_ORDER_CONFIRMED => '#094FA4',
             self::CLIENT_STAGE_RESEARCH_STARTED => '#3b82f6',
             self::CLIENT_STAGE_SENT_TO_CLIENT => '#059669',
             self::CLIENT_STAGE_CANCELLED => '#dc2626',
-            default => '#6366f1',
+            default => '#094FA4',
         };
     }
 

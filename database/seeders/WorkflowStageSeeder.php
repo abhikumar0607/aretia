@@ -10,7 +10,7 @@ class WorkflowStageSeeder extends Seeder
     public function run(): void
     {
         $stages = [
-            ['name' => 'Assigned', 'slug' => 'assigned', 'color' => '#6366f1', 'sort_order' => 1, 'is_active' => true, 'responsible_role' => 'analyst'],
+            ['name' => 'Assigned', 'slug' => 'assigned', 'color' => '#094FA4', 'sort_order' => 1, 'is_active' => true, 'responsible_role' => 'analyst'],
             ['name' => 'Research started', 'slug' => 'research-started', 'color' => '#3b82f6', 'sort_order' => 2, 'is_active' => true, 'responsible_role' => 'analyst'],
             ['name' => 'Research done', 'slug' => 'research-done', 'color' => '#0ea5e9', 'sort_order' => 3, 'is_active' => true, 'responsible_role' => 'analyst'],
             ['name' => 'QA started', 'slug' => 'qa-started', 'color' => '#f59e0b', 'sort_order' => 4, 'is_active' => true, 'responsible_role' => 'qa'],

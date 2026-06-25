@@ -306,7 +306,7 @@ class CaseFile extends Model
             return \App\Support\CaseWorkflow::clientStageColor($this->stage?->slug);
         }
 
-        return $this->stage?->color ?? '#6366f1';
+        return $this->stage?->color ?? '#094FA4';
     }
 
     /**
